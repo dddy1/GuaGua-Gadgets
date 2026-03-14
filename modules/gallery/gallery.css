@@ -1,0 +1,60 @@
+/* ===== 图库面板 ===== */
+#ggg-gallery-subtabs { display: flex; gap: 0; margin-bottom: 8px; border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 6px; overflow: hidden; }
+.ggg-gallery-subtab { flex: 1; text-align: center; padding: 6px 8px; cursor: pointer; font-size: 0.82em; color: var(--SmartThemeBodyColor, #ccc); opacity: 0.6; transition: opacity 0.2s, background 0.2s; user-select: none; }
+.ggg-gallery-subtab:hover { opacity: 0.8; background: rgba(255,255,255,0.05); }
+.ggg-gallery-subtab.active { opacity: 1; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.12)); }
+.ggg-gallery-subtab i { margin-right: 3px; }
+
+.ggg-gallery-panel { display: none; }
+.ggg-gallery-panel.active { display: block; }
+
+.ggg-gallery-toolbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ggg-gallery-count { font-size: 0.8em; opacity: 0.6; }
+
+#ggg-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; max-height: 400px; overflow-y: auto; }
+
+.ggg-gallery-item { aspect-ratio: 1; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--SmartThemeBorderColor, #555); position: relative; cursor: pointer; }
+.ggg-gallery-item:hover .ggg-gallery-delete { opacity: 1; }
+
+.ggg-gallery-delete { position: absolute; top: 2px; right: 2px; background: rgba(200,50,50,0.8); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7em; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; }
+
+.ggg-gallery-item-name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65em; padding: 2px 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0 0 6px 6px; }
+
+#ggg-gallery-grid::-webkit-scrollbar { width: 4px; }
+#ggg-gallery-grid::-webkit-scrollbar-thumb { background: var(--SmartThemeBorderColor, #555); border-radius: 2px; }
+
+.ggg-gallery-tag {
+  display: inline-block;
+  background: var(--SmartThemeQuoteColor, #a33);
+  color: #fff;
+  font-size: 0.7em;
+  padding: 2px 6px;
+  margin: 2px 2px 0 0;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.ggg-gallery-tag:hover {
+  background: var(--SmartThemeEmColor, #777);
+}
+.ggg-gallery-tag-filter-btn {
+  display: inline-block;
+  background: var(--SmartThemeBlurTintColor, #555);
+  color: var(--SmartThemeBodyColor, #fff);
+  font-size: 0.75em;
+  padding: 2px 8px;
+  margin: 0 4px 0 0;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: background 0.2s, opacity 0.2s;
+}
+.ggg-gallery-tag-filter-btn.active {
+  background: var(--SmartThemeQuoteColor, #a33);
+  opacity: 1;
+}
+.ggg-gallery-tag-filter-btn:hover {
+  background: var(--SmartThemeEmColor, #777);
+  opacity: 1;
+}

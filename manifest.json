@@ -1,0 +1,12 @@
+{
+    "display_name": "GuaGua Gadgets",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "GuaGua",
+    "version": "0.1.0",
+    "homePage": "",
+    "auto_update": false
+}

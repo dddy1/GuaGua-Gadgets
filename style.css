@@ -1,0 +1,120 @@
+/* ===== 强制图标字体 ===== */
+#ggg-settings .ggg-fa,
+#ggg-ui-custom-panel .ggg-fa {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "FontAwesome" !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+}
+
+/* ===== 整体内边距 ===== */
+#ggg-settings .inline-drawer-content {
+    padding: 10px;
+}
+
+/* ===== 标签页 ===== */
+#ggg-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #555);
+    padding-bottom: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+#ggg-tabs::-webkit-scrollbar { display: none; }
+
+.ggg-tab {
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.85em;
+    opacity: 0.5;
+    transition: opacity 0.2s, background 0.2s;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.ggg-tab:hover { opacity: 0.8; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.1)); }
+.ggg-tab.active { opacity: 1; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.15)); border-bottom: 2px solid var(--SmartThemeQuoteColor, #aaa); }
+.ggg-tab i { margin-right: 3px; font-size: 0.9em; }
+.ggg-tab.disabled { opacity: 0.25 !important; cursor: not-allowed !important; pointer-events: none; }
+
+/* ===== 面板切换动画 ===== */
+.ggg-panel { display: none; opacity: 0; transform: translateY(6px); transition: opacity 0.25s ease, transform 0.25s ease; }
+.ggg-panel.active { display: block; animation: gggFadeIn 0.25s ease forwards; }
+@keyframes gggFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.ggg-subpanel { display: none; opacity: 0; }
+.ggg-subpanel.active { display: block; animation: gggFadeIn 0.2s ease forwards; }
+
+/* ===== 通用组件 ===== */
+.ggg-section-title { font-size: 0.95em; font-weight: bold; color: var(--SmartThemeBodyColor, #eee); margin-bottom: 6px; margin-top: 4px; }
+.ggg-section-title i { margin-right: 4px; }
+.ggg-section-block { padding: 4px 0 6px 4px; }
+.ggg-section-divider { height: 1px; background: var(--SmartThemeBorderColor, #555); margin: 8px 0; }
+
+.ggg-toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82em; color: var(--SmartThemeBodyColor, #ccc); }
+.ggg-toggle-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+.ggg-toggle-icon { font-size: 0.9em; opacity: 0.7; }
+.ggg-feature-toggles-inline { margin-top: 6px; padding-left: 16px; }
+.ggg-toggle-sub { font-size: 0.78em !important; opacity: 0.8; }
+.ggg-toggle-sub input[type="checkbox"] { width: 13px !important; height: 13px !important; }
+
+.ggg-btn-small { padding: 3px 8px !important; font-size: 0.85em !important; min-width: unset !important; }
+.ggg-label { opacity: 0.7; flex-shrink: 0; }
+
+/* ===== 使用说明 ===== */
+.ggg-guide-wrapper { border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.ggg-guide-sub { margin-top: 8px; border-color: var(--SmartThemeBorderColor, #444); }
+
+.ggg-guide-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 10px; cursor: pointer; font-size: 0.88em; font-weight: bold; color: var(--SmartThemeBodyColor, #eee); transition: background 0.2s; user-select: none; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.05)); }
+.ggg-guide-toggle:hover { background: rgba(255,255,255,0.1); }
+.ggg-guide-arrow { margin-left: auto; transition: transform 0.3s ease; font-size: 0.8em; }
+.ggg-guide-toggle.open .ggg-guide-arrow { transform: rotate(180deg); }
+
+.ggg-guide-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease; padding: 0 10px; font-size: 0.8em; color: var(--SmartThemeBodyColor, #ccc); line-height: 1.5; }
+.ggg-guide-content.open { max-height: 2000px; padding: 8px 10px 12px; }
+.ggg-guide-content p { margin: 4px 0 8px; }
+
+.ggg-guide-subtitle { font-weight: bold; font-size: 0.95em; margin: 10px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--SmartThemeBorderColor, #444); opacity: 0.8; }
+.ggg-guide-marks { padding: 6px 0; }
+.ggg-guide-mark-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.ggg-guide-mark-label { font-weight: bold; font-size: 0.9em; flex-shrink: 0; min-width: 30px; }
+.ggg-guide-marks code { background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.95em; }
+.ggg-guide-mark-desc { font-size: 0.85em; opacity: 0.55; margin-top: 1px; margin-bottom: 6px; padding-left: 2px; }
+.ggg-guide-example-note { font-size: 0.85em; opacity: 0.55; font-style: italic; margin-bottom: 4px; }
+
+/* ===== 示例代码 ===== */
+.ggg-example-code { display: block; padding: 10px 12px; font-family: monospace; font-size: 1em; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin: 4px 0; color: var(--SmartThemeBodyColor, #ccc); background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.15)); border-radius: 6px; }
+.ggg-code-comment { opacity: 0.6; color: var(--SmartThemeQuoteColor, #8a8); }
+
+/* ===== 复制 ===== */
+.ggg-copy-icon { cursor: pointer; opacity: 0.4; transition: opacity 0.2s, color 0.2s; font-size: 0.85em; margin-left: 4px; vertical-align: middle; }
+.ggg-copy-icon:hover { opacity: 1; }
+.ggg-copy-icon.copied { color: #4caf50; opacity: 1; }
+
+/* ===== 鸣谢 ===== */
+.ggg-credits-card { border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 8px; padding: 8px 12px; }
+.ggg-credits-title { font-size: 0.85em; font-weight: bold; color: var(--SmartThemeBodyColor, #eee); margin-bottom: 4px; }
+.ggg-credits-title i { margin-right: 4px; color: #ff6b9d; }
+.ggg-credits-content { font-size: 0.8em; color: var(--SmartThemeBodyColor, #ccc); }
+.ggg-credits-sep { margin: 0 6px; opacity: 0.4; }
+
+/* ===== 空状态 ===== */
+.ggg-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; color: var(--SmartThemeBodyColor, #999); opacity: 0.7; gap: 8px; }
+.ggg-empty-icon { font-size: 2em; }
+.ggg-empty-hint { font-size: 0.8em; opacity: 0.6; line-height: 1.6; }
+.ggg-empty-hint code { background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+
+/* ===== 通用滚动条 ===== */
+.ggg-scrollable::-webkit-scrollbar { width: 4px; }
+.ggg-scrollable::-webkit-scrollbar-thumb { background: var(--SmartThemeBorderColor, #555); border-radius: 2px; }
+
+/* ===== 隐藏酒馆背景中的ggg图片 ===== */
+#bg_menu_content .bg_example[bgfile^="ggg_"] { display: none !important; }
