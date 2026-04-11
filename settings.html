@@ -41,109 +41,162 @@
                             <input type="checkbox" id="ggg-toggle-beautify" data-feature="beautify" checked>
                             <span>美化</span>
                         </label>
+                        <label class="ggg-toggle-label ggg-toggle-sub">
+                            <input type="checkbox" id="ggg-toggle-tools" data-feature="tools" checked>
+                            <span>工具</span>
+                        </label>
                     </div>
                 </div>
 
                 <div class="ggg-section-divider"></div>
 
-                <!-- 使用说明 -->
-                <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-book"></i> 使用说明</div>
+                <!-- 使用条款与声明 -->
+                <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-file-contract"></i> 使用条款与声明</div>
 
                 <div class="ggg-guide-wrapper">
-                    <div class="ggg-guide-toggle" data-guide="beautify">
-                        <i class="ggg-fa fa-solid fa-palette"></i> 美化 - UI主题自定义
+                    <div class="ggg-guide-toggle" data-guide="terms">
+                        <i class="ggg-fa fa-solid fa-circle-info"></i> 使用须知与声明
                         <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
                     </div>
-                    <div class="ggg-guide-content" data-guide-content="beautify">
-                        <p>在自定义CSS中添加标记注释，即可在面板中可视化修改图片、文字和颜色。</p>
-                        <p>UI主题自定义面板位于 用户设置 → 主题颜色 上方。</p>
-                        <p><strong>注意：标记注释中的名称不能重复！</strong>不同标记项请使用不同的名称。</p>
+                    <div class="ggg-guide-content" data-guide-content="terms">
+                        <p>本插件（呱呱小工具）是一个面向 SillyTavern 的第三方扩展，仅供学习和个人使用。</p>
+                        <p><b>禁止商业使用：</b>本插件及其衍生作品禁止用于任何商业目的，包括但不限于销售、出售授权或将其作为商业产品的一部分。</p>
+                        <p><b>免责声明：</b>本插件与 SillyTavern 官方团队无关。使用本插件所产生的一切后果由用户自行承担，作者不承担任何直接或间接责任。</p>
+                        <p><b>字体版权：</b>通过本插件导入的字体文件需遵守相应的字体授权协议，请确保您有权使用该字体。</p>
+                        <p><b>图片版权：</b>上传至图库的图片请遵守相关版权法律法规。</p>
+                        <p><b>数据安全：</b>所有数据（字体、图片、设置）均存储在用户本地浏览器，不上传至任何服务器。</p>
+                        <p style="opacity:0.65;font-size:0.85em;">如有问题或建议，欢迎反馈。感谢使用呱呱小工具！</p>
+                    </div>
+                </div>
 
-                        <div class="ggg-guide-subtitle">标记格式</div>
-                        <div class="ggg-guide-marks">
-                            <div class="ggg-guide-mark-row">
-                                <span class="ggg-guide-mark-label">图片</span>
-                                <code>/* ggg-img: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-img-user: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-user: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-img-char: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-char: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-desc">放在 url('...') 的前面（同一行或上一行均可）</div>
+                <div class="ggg-section-divider"></div>
 
-                            <div class="ggg-guide-mark-row">
-                                <span class="ggg-guide-mark-label">文字</span>
-                                <code>/* ggg-text: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-text-user: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-user: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-text-char: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-char: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-desc">放在 content: "..." 的前面（同一行或上一行均可）</div>
+                <!-- 鸣谢 -->
+                <div class="ggg-credits-card">
+                    <div class="ggg-credits-title"><i class="ggg-fa fa-solid fa-heart"></i> 鸣谢</div>
+                    <div class="ggg-credits-content">
+                        <span>Claude（主要开发协作）</span>
+                        <span class="ggg-credits-sep">·</span>
+                        <span>DeepSeek（方案讨论）</span>
+                        <span class="ggg-credits-sep">·</span>
+                        <span>Gemini（方案讨论）</span>
+                    </div>
+                    <div class="ggg-credits-content" style="margin-top:6px;">
+                        <span>
+                            <a href="https://github.com/Lianues/st-api-wrapper" target="_blank" rel="noopener" style="color:var(--SmartThemeQuoteColor,#aaa);text-decoration:underline;">@Lianues</a>
+                            的插件开发教程
+                            <a href="https://github.com/Lianues/st-api-wrapper/tree/main/docs" target="_blank" rel="noopener" style="color:var(--SmartThemeQuoteColor,#aaa);text-decoration:underline;font-size:0.85em;">（查看文档）</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
 
-                            <div class="ggg-guide-mark-row">
-                                <span class="ggg-guide-mark-label">颜色</span>
-                                <code>/* ggg-color: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-color-user: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-user: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-color-char: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-char: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-desc">放在颜色值或CSS变量声明的前面（同一行或上一行均可）</div>
+            <!-- ========== 美化面板（导航栏式） ========== -->
+            <div id="ggg-panel-beautify" class="ggg-panel">
+                <!-- 二级导航栏 -->
+                <div class="ggg-beautify-nav">
+                    <div class="ggg-beautify-nav-item active" data-btab="ui-custom">
+                        <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i> UI主题自定义
+                    </div>
+                    <div class="ggg-beautify-nav-item" data-btab="font">
+                        <i class="ggg-fa fa-solid fa-font"></i> 字体管理
+                    </div>
+                </div>
 
-                            <div class="ggg-guide-mark-row">
-                                <span class="ggg-guide-mark-label">SVG文字</span>
-                                <code>/* ggg-svg-text: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-text: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-svg-text-user: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-text-user: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-svg-text-char: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-text-char: 名称 */" title="点击复制"></i>
-                            </div>
+                <!-- UI主题自定义 子面板 -->
+                <div class="ggg-beautify-subpanel active" id="ggg-bpanel-ui-custom">
+                    <div class="ggg-section-block">
+                        <p style="font-size:0.82em;opacity:0.8;margin:0 0 8px;">
+                            UI主题自定义面板位于：用户设置 → 主题颜色 上方
+                        </p>
+                        <label class="ggg-toggle-label">
+                            <input type="checkbox" id="ggg-toggle-ui-custom" checked>
+                            <i class="ggg-fa fa-solid fa-wand-magic-sparkles ggg-toggle-icon"></i>
+                            <span>启用UI主题自定义</span>
+                        </label>
+                    </div>
 
-                            <div class="ggg-guide-mark-row">
-                                <span class="ggg-guide-mark-label">SVG颜色</span>
-                                <code>/* ggg-svg-color: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-color: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-svg-color-user: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-color-user: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-row" style="padding-left: 30px;">
-                                <code>/* ggg-svg-color-char: 名称 */</code>
-                                <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-svg-color-char: 名称 */" title="点击复制"></i>
-                            </div>
-                            <div class="ggg-guide-mark-desc">用于 SVG data URL 中的文字和颜色。放在含有 url("data:image/svg+xml,...") 的属性前面</div>
+                    <!-- UI主题自定义使用说明 -->
+                    <div class="ggg-guide-wrapper" style="margin-top:6px;">
+                        <div class="ggg-guide-toggle" data-guide="uicustom-usage">
+                            <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
+                            <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
                         </div>
+                        <div class="ggg-guide-content" data-guide-content="uicustom-usage">
+                            <p>在自定义CSS中为属性添加<b>标记注释</b>，即可在上方面板中可视化修改图片、文字、颜色和尺寸。</p>
+                            <strong style="display:block;margin-bottom:6px;">注意：同一面板中标记名称不能重复！</strong>
 
-                        <!-- 使用示例 -->
-                        <div class="ggg-guide-wrapper ggg-guide-sub">
-                            <div class="ggg-guide-toggle" data-guide="beautify-example">
-                                <i class="ggg-fa fa-solid fa-code"></i> 使用示例
-                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            <div class="ggg-guide-subtitle">标记格式</div>
+                            <div class="ggg-guide-marks">
+                                <div class="ggg-guide-mark-row">
+                                    <span class="ggg-guide-mark-label">图片</span>
+                                    <code>/* ggg-img: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-img-user: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-user: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-img-char: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-char: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-desc">放在 url('...') 的前面（同一行或上一行均可）</div>
+
+                                <div class="ggg-guide-mark-row">
+                                    <span class="ggg-guide-mark-label">文字</span>
+                                    <code>/* ggg-text: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-text-user: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-user: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-text-char: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-char: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-desc">放在 content: "..." 的前面（同一行或上一行均可）</div>
+
+                                <div class="ggg-guide-mark-row">
+                                    <span class="ggg-guide-mark-label">颜色</span>
+                                    <code>/* ggg-color: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-color-user: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-user: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-color-char: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-char: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-desc">放在颜色值或CSS变量声明的前面（同一行或上一行均可）</div>
+
+                                <div class="ggg-guide-mark-row">
+                                    <span class="ggg-guide-mark-label">尺寸</span>
+                                    <code>/* ggg-dim: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-dim-user: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim-user: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                    <code>/* ggg-dim-char: 名称 */</code>
+                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim-char: 名称 */" title="点击复制"></i>
+                                </div>
+                                <div class="ggg-guide-mark-desc">放在CSS数值属性（如 top、width、height 等）的上一行</div>
                             </div>
-                            <div class="ggg-guide-content" data-guide-content="beautify-example">
-                                <div class="ggg-guide-example-note">以下示例美化代码来自呱呱</div>
+
+                            <!-- 使用示例（可折叠） -->
+                            <div class="ggg-guide-wrapper ggg-guide-sub" style="margin-top:8px;">
+                                <div class="ggg-guide-toggle" data-guide="uicustom-example">
+                                    <i class="ggg-fa fa-solid fa-code"></i> 使用示例
+                                    <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                                </div>
+                                <div class="ggg-guide-content" data-guide-content="uicustom-example">
+                                    <div class="ggg-guide-example-note">以下示例美化代码来自呱呱</div>
 <pre class="ggg-example-code"><span class="ggg-code-comment">/* 图片标记 - 标记在上一行 */</span>
 #chat .mes .ch_name::before {
     <span class="ggg-code-comment">/* ggg-img-char: 闪烁星星图 */</span>
@@ -153,7 +206,7 @@
 
 <span class="ggg-code-comment">/* 图片标记 - 标记在同一行 */</span>
 #chat .mes .ch_name::after {
-    background-image: <span class="ggg-code-comment">/* ggg-img-user: 闪烁星星图*/</span>url('https://i.postimg.cc/mk42wcSs/2-1-1.png');
+    background-image: <span class="ggg-code-comment">/* ggg-img-user: 闪烁星星图 */</span>url('https://i.postimg.cc/mk42wcSs/2-1-1.png');
 }
 
 <span class="ggg-code-comment">/* 文字标记 */</span>
@@ -166,8 +219,6 @@
 :root {
     <span class="ggg-code-comment">/* ggg-color: 主题色 */</span>
     --blur-tint-color: rgba(178, 152, 164, 1);
-    <span class="ggg-code-comment">/* ggg-color: 消息背景色 */</span>
-    --color-light-grey-1: rgb(85, 85, 85);
 }
 
 <span class="ggg-code-comment">/* 颜色标记 - 标记在同一行 */</span>
@@ -175,11 +226,21 @@
     --my-border: <span class="ggg-code-comment">/* ggg-color-char: 角色边框色 */</span> #ff6b9d;
 }
 
-<span class="ggg-code-comment">/* SVG文字和颜色标记 - 用于SVG data URL */</span>
-#send_textarea:placeholder-shown {
-    <span class="ggg-code-comment">/* ggg-svg-color: 输入框文字颜色 */</span>
-    <span class="ggg-code-comment">/* ggg-svg-text: 输入框文字 */</span>
-    background-image: url("data:image/svg+xml,...") !important;
+<span class="ggg-code-comment">/* 尺寸标记 - 用于自定义位置和大小 */</span>
+.mes:not([is_user="true"]) .mesAvatarWrapper .mesIDDisplay::after {
+    content: "";
+    position: absolute;
+    <span class="ggg-code-comment">/* ggg-dim: 增大下移 */</span>
+    top: -45px;
+    <span class="ggg-code-comment">/* ggg-dim: 增大左移 */</span>
+    right: -30px;
+    <span class="ggg-code-comment">/* ggg-dim: 宽 */</span>
+    width: 70px;
+    <span class="ggg-code-comment">/* ggg-dim: 高 */</span>
+    height: 70px;
+    <span class="ggg-code-comment">/* ggg-img-char: 楼层背图 */</span>
+    background: url('https://i.postimg.cc/jqn88QPT/hui.png') no-repeat center;
+    background-size: contain;
 }
 
 <span class="ggg-code-comment">/* 歌词动画中的文字标记 */</span>
@@ -189,47 +250,22 @@
     <span class="ggg-code-comment">/* ggg-text-user: user歌词2 */</span>
     14.7%, 30.3% { content: "That never gets told"; }
 }</pre>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="ggg-section-divider"></div>
-
-                <!-- 鸣谢 -->
-                <div class="ggg-credits-card">
-                    <div class="ggg-credits-title"><i class="ggg-fa fa-solid fa-heart"></i> 鸣谢</div>
-                    <div class="ggg-credits-content">
-                        <span>感谢 Claude</span>
-                        <span class="ggg-credits-sep">·</span>
-                        <span>@Lianues 的插件教程</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ========== 美化面板 ========== -->
-            <div id="ggg-panel-beautify" class="ggg-panel">
-                <div class="ggg-section-block">
-                    <p style="font-size:0.82em;opacity:0.8;margin:0 0 8px;">
-                        UI主题自定义面板位于：用户设置 → 主题颜色 上方
-                    </p>
-                    <label class="ggg-toggle-label">
-                        <input type="checkbox" id="ggg-toggle-ui-custom" checked>
-                        <i class="ggg-fa fa-solid fa-wand-magic-sparkles ggg-toggle-icon"></i>
-                        <span>启用UI主题自定义</span>
-                    </label>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-a"></i> 字体管理</div>
-                    <div class="ggg-empty-state" style="padding:12px;">
-                        <div>字体管理 - 开发中</div>
-                    </div>
+                <!-- 字体管理 子面板 -->
+                <div class="ggg-beautify-subpanel" id="ggg-bpanel-font">
+                    <div id="ggg-panel-font"></div>
                 </div>
             </div>
 
             <!-- ========== 工具面板 ========== -->
             <div id="ggg-panel-tools" class="ggg-panel">
+
+
                 <div class="ggg-section-block">
                     <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-camera"></i> 截图</div>
                     <div class="ggg-empty-state" style="padding:12px;"><div>截图功能 - 开发中</div></div>
@@ -253,6 +289,7 @@
             <div id="ggg-panel-gallery" class="ggg-panel">
                 <!-- 由 gallery.js 填充 -->
             </div>
+
 
             <input type="file" id="ggg-file-input" accept="image/*" multiple style="display:none;">
         </div>

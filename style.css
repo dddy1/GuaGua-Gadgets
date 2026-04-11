@@ -118,3 +118,38 @@
 
 /* ===== 隐藏酒馆背景中的ggg图片 ===== */
 #bg_menu_content .bg_example[bgfile^="ggg_"] { display: none !important; }
+
+/* ===== 美化面板导航栏（Phase 4） ===== */
+.ggg-beautify-nav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.ggg-beautify-nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-size: 0.82em;
+    font-weight: 500;
+    color: var(--SmartThemeBodyColor, #ccc);
+    opacity: 0.55;
+    transition: opacity 0.2s, background 0.2s;
+    user-select: none;
+}
+.ggg-beautify-nav-item:not(:last-child) {
+    border-right: 1px solid var(--SmartThemeBorderColor, #555);
+}
+.ggg-beautify-nav-item:hover { opacity: 0.85; background: rgba(255,255,255,0.04); }
+.ggg-beautify-nav-item.active {
+    opacity: 1;
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.1));
+    font-weight: bold;
+}
+.ggg-beautify-nav-item i { margin-right: 4px; }
+
+.ggg-beautify-subpanel { display: none; }
+.ggg-beautify-subpanel.active { display: block; }

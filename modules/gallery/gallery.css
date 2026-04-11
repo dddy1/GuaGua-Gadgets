@@ -8,53 +8,295 @@
 .ggg-gallery-panel { display: none; }
 .ggg-gallery-panel.active { display: block; }
 
-.ggg-gallery-toolbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ggg-gallery-toolbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
+.ggg-gallery-toolbar-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .ggg-gallery-count { font-size: 0.8em; opacity: 0.6; }
 
+/* ===== 尺寸分类开关 ===== */
+.ggg-size-sort-label {
+    display: flex; align-items: center; gap: 4px;
+    cursor: pointer; font-size: 0.78em; opacity: 0.8;
+    color: var(--SmartThemeBodyColor, #ccc);
+    padding: 3px 8px; border-radius: 4px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    transition: background 0.2s, opacity 0.2s;
+    user-select: none;
+}
+.ggg-size-sort-label:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+.ggg-size-sort-label input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; }
+
+/* ===== 编辑模式工具栏 ===== */
+#ggg-gallery-edit-bar,
+#ggg-avatar-edit-bar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 8px; margin-bottom: 8px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 6px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    flex-wrap: wrap;
+}
+.ggg-multi-count { font-size: 0.78em; opacity: 0.7; margin-left: auto; }
+.ggg-btn-danger { color: #ff6b6b !important; border-color: rgba(255,107,107,0.3) !important; }
+.ggg-btn-danger:hover { background: rgba(255,107,107,0.15) !important; }
+
+/* 编辑/多选按钮激活状态 */
+#ggg-btn-edit-gallery.active,
+#ggg-btn-edit-avatar.active {
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.15));
+    border-color: var(--SmartThemeQuoteColor, #aaa);
+}
+
+/* ===== Tag 筛选栏 ===== */
+#ggg-gallery-tag-filter {
+    display: none; align-items: center; gap: 4px;
+    padding: 6px 0; margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+.ggg-tag-filter-label { font-size: 0.75em; opacity: 0.5; flex-shrink: 0; }
+.ggg-tag-chip {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 12px;
+    font-size: 0.75em; cursor: pointer;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    color: var(--SmartThemeBodyColor, #ccc);
+    background: transparent;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    user-select: none;
+}
+.ggg-tag-chip:hover { background: rgba(255,255,255,0.08); border-color: var(--SmartThemeQuoteColor, #aaa); }
+.ggg-tag-chip.active {
+    background: var(--SmartThemeQuoteColor, rgba(170,170,170,0.2));
+    border-color: var(--SmartThemeQuoteColor, #aaa);
+    color: var(--SmartThemeBodyColor, #fff);
+    font-weight: bold;
+}
+.ggg-tag-clear { opacity: 0.6; }
+.ggg-tag-clear:hover { opacity: 1; color: #ff6b6b; border-color: rgba(255,107,107,0.5); }
+
+/* ===== 图库网格 ===== */
 #ggg-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; max-height: 400px; overflow-y: auto; }
 
-.ggg-gallery-item { aspect-ratio: 1; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--SmartThemeBorderColor, #555); position: relative; cursor: pointer; }
-.ggg-gallery-item:hover .ggg-gallery-delete { opacity: 1; }
+.ggg-gallery-item {
+    aspect-ratio: 1; border-radius: 6px; background-size: cover; background-position: center;
+    border: 1px solid var(--SmartThemeBorderColor, #555); position: relative; cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.ggg-gallery-item:hover { border-color: var(--SmartThemeQuoteColor, #aaa); }
 
-.ggg-gallery-delete { position: absolute; top: 2px; right: 2px; background: rgba(200,50,50,0.8); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7em; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; }
+/* 悬浮只显示标签按钮，删除按钮仅在编辑模式显示 */
+.ggg-gallery-item:hover .ggg-gallery-tag-btn { opacity: 1; }
 
-.ggg-gallery-item-name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65em; padding: 2px 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0 0 6px 6px; }
+.ggg-gallery-item.selected {
+    border-color: #4fc3f7; box-shadow: 0 0 8px rgba(79,195,247,0.4);
+    transform: scale(0.97);
+}
 
+/* 多选复选框 */
+.ggg-gallery-checkbox {
+    position: absolute; top: 3px; left: 3px; z-index: 2;
+    font-size: 1em; color: rgba(255,255,255,0.7);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+.ggg-gallery-checkbox.checked { color: #4fc3f7; }
+
+/* 删除按钮 —— 仅编辑模式下渲染（由 JS 控制显示/隐藏） */
+.ggg-gallery-delete {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(200,50,50,0.85); color: #fff;
+    border: none; border-radius: 50%; width: 20px; height: 20px;
+    font-size: 0.7em; cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3;
+}
+.ggg-gallery-delete:hover { background: rgba(220,20,20,0.95); transform: scale(1.1); }
+
+/* 标签按钮（所有模式下悬浮可见） */
+.ggg-gallery-tag-btn {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(50,120,200,0.8); color: #fff;
+    border: none; border-radius: 50%; width: 20px; height: 20px;
+    font-size: 0.65em; cursor: pointer; opacity: 0;
+    transition: opacity 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2;
+}
+/* 编辑模式下删除按钮在 tag 按钮位置已不存在，但 tag 按钮仍放右上角 */
+.ggg-gallery-item .ggg-edit-only ~ .ggg-gallery-tag-btn {
+    right: 26px;
+}
+
+/* 标签显示 */
+.ggg-gallery-item-tags {
+    position: absolute; top: auto; bottom: 0; left: 0; right: 0;
+    display: flex; flex-wrap: wrap; gap: 2px;
+    padding: 2px 3px; justify-content: flex-start;
+    pointer-events: none;
+}
+.ggg-gallery-tag-mini {
+    display: inline-block;
+    padding: 0 4px; border-radius: 3px;
+    font-size: 0.55em; line-height: 1.4;
+    background: rgba(79,195,247,0.5); color: #fff;
+    white-space: nowrap; max-width: 60px;
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 图库条目文件名 —— 不显示（移除） */
+.ggg-gallery-item-name { display: none; }
+
+/* ===== 尺寸分组标题 ===== */
+.ggg-gallery-size-group-title {
+    grid-column: 1 / -1;
+    font-size: 0.78em; font-weight: bold;
+    padding: 6px 4px 3px; opacity: 0.7;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
+    margin-bottom: 2px; margin-top: 4px;
+}
+
+/* ===== 标签管理弹窗 ===== */
+.ggg-tag-popup { padding: 8px 0; }
+.ggg-tag-popup-title { font-size: 1em; font-weight: bold; margin-bottom: 10px; }
+.ggg-tag-popup-preview {
+    width: 100%; height: 120px; border-radius: 8px;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+    background-color: rgba(0,0,0,0.2);
+    margin-bottom: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+}
+.ggg-tag-popup-section { margin-bottom: 10px; }
+.ggg-tag-popup-subtitle { font-size: 0.85em; font-weight: bold; opacity: 0.8; margin-bottom: 6px; }
+.ggg-tag-popup-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.ggg-tag-popup-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 14px;
+    font-size: 0.85em; cursor: pointer;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    background: transparent;
+    transition: background 0.2s, border-color 0.2s;
+    user-select: none;
+}
+.ggg-tag-popup-chip:hover { background: rgba(255,255,255,0.08); }
+.ggg-tag-popup-chip input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
+.ggg-tag-popup-chip input[type="checkbox"]:checked + span { font-weight: bold; }
+
+.ggg-tag-popup-new-row { display: flex; gap: 4px; align-items: center; }
+.ggg-tag-popup-new-row input { flex: 1; }
+
+.ggg-tag-popup-current-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; min-height: 24px; }
+.ggg-tag-current-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 12px;
+    font-size: 0.82em;
+    background: rgba(79,195,247,0.2);
+    border: 1px solid rgba(79,195,247,0.4);
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+.ggg-tag-current-chip .ggg-tag-remove,
+.ggg-tag-current-chip .ggg-avatar-tag-remove,
+.ggg-tag-current-chip .ggg-ab-rm {
+    cursor: pointer; font-size: 0.8em; opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s;
+}
+.ggg-tag-current-chip .ggg-tag-remove:hover,
+.ggg-tag-current-chip .ggg-avatar-tag-remove:hover,
+.ggg-tag-current-chip .ggg-ab-rm:hover { opacity: 1; color: #ff6b6b; }
+
+/* ===== 滚动条 ===== */
 #ggg-gallery-grid::-webkit-scrollbar { width: 4px; }
 #ggg-gallery-grid::-webkit-scrollbar-thumb { background: var(--SmartThemeBorderColor, #555); border-radius: 2px; }
 
-.ggg-gallery-tag {
-  display: inline-block;
-  background: var(--SmartThemeQuoteColor, #a33);
-  color: #fff;
-  font-size: 0.7em;
-  padding: 2px 6px;
-  margin: 2px 2px 0 0;
-  border-radius: 4px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
+/* ===== 头像库 ===== */
+.ggg-avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; max-height: 500px; overflow-y: auto; }
+.ggg-avatar-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px; border-radius: 8px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    border: 2px solid transparent; position: relative;
 }
-.ggg-gallery-tag:hover {
-  background: var(--SmartThemeEmColor, #777);
+.ggg-avatar-item:hover { background: rgba(255,255,255,0.06); }
+
+/* 头像编辑模式选中 */
+.ggg-avatar-item.avatar-selected {
+    border-color: #4fc3f7;
+    background: rgba(79,195,247,0.07);
+    box-shadow: 0 0 8px rgba(79,195,247,0.3);
 }
-.ggg-gallery-tag-filter-btn {
-  display: inline-block;
-  background: var(--SmartThemeBlurTintColor, #555);
-  color: var(--SmartThemeBodyColor, #fff);
-  font-size: 0.75em;
-  padding: 2px 8px;
-  margin: 0 4px 0 0;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: background 0.2s, opacity 0.2s;
+
+.ggg-avatar-thumb { width: 64px; height: 64px; border-radius: var(--ggg-avatar-radius, 50%); background-size: cover; background-position: center; border: 2px solid var(--SmartThemeBorderColor, #555); transition: border-color 0.2s, border-radius 0.3s; }
+.ggg-avatar-item:hover .ggg-avatar-thumb { border-color: var(--SmartThemeQuoteColor, #aaa); }
+.ggg-avatar-item.avatar-selected .ggg-avatar-thumb { border-color: #4fc3f7; }
+
+/* 头像编辑模式复选框 */
+.ggg-avatar-checkbox {
+    position: absolute; top: 5px; right: 5px; z-index: 2;
+    font-size: 1em; color: rgba(255,255,255,0.7);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    pointer-events: none;
 }
-.ggg-gallery-tag-filter-btn.active {
-  background: var(--SmartThemeQuoteColor, #a33);
-  opacity: 1;
+.ggg-avatar-checkbox.checked { color: #4fc3f7; }
+
+.ggg-avatar-actions { display: flex; gap: 4px; }
+
+/* 头像标签显示 */
+.ggg-avatar-tags { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; max-width: 90px; }
+.ggg-avatar-tag-chip {
+    display: inline-block; padding: 1px 5px; border-radius: 8px;
+    font-size: 0.6em; line-height: 1.4;
+    background: rgba(79,195,247,0.25); color: var(--SmartThemeBodyColor, #ccc);
+    border: 1px solid rgba(79,195,247,0.3);
+    white-space: nowrap; max-width: 80px;
+    overflow: hidden; text-overflow: ellipsis;
 }
-.ggg-gallery-tag-filter-btn:hover {
-  background: var(--SmartThemeEmColor, #777);
-  opacity: 1;
+
+/* 头像标签筛选栏 */
+.ggg-tag-bar {
+    display: flex; gap: 4px; padding: 5px 0; margin-bottom: 6px;
+    overflow-x: auto; flex-wrap: wrap;
+}
+
+/* 头像选择弹窗 */
+.ggg-avatar-picker-header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 10px 0; margin-bottom: 8px; border-bottom: 1px solid var(--SmartThemeBorderColor, #444); }
+.ggg-avatar-picker-title { font-size: 1em; font-weight: bold; color: var(--SmartThemeBodyColor, #ccc); display: flex; align-items: center; gap: 6px; }
+.ggg-avatar-picker-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; font-size: 1em; color: var(--SmartThemeBodyColor, #ccc); opacity: 0.6; transition: all 0.2s; border: 1px solid transparent; }
+.ggg-avatar-picker-close:hover { opacity: 1; background: rgba(255,80,80,0.15); color: #ff6b6b; border-color: rgba(255,80,80,0.3); }
+.ggg-avatar-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+.ggg-avatar-picker-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+.ggg-avatar-picker-item:hover { background: rgba(255,255,255,0.06); border-color: var(--SmartThemeBorderColor, #555); }
+.ggg-avatar-picker-item.selected { border-color: var(--SmartThemeQuoteColor, #9b9); background: rgba(155,187,155,0.1); }
+.ggg-avatar-picker-thumb { width: 56px; height: 56px; border-radius: var(--ggg-avatar-radius, 50%); background-size: cover; background-position: center; border: 2px solid var(--SmartThemeBorderColor, #555); transition: border-radius 0.3s; }
+.ggg-avatar-picker-item.selected .ggg-avatar-picker-thumb { border-color: var(--SmartThemeQuoteColor, #9b9); }
+
+/* 头像选择弹窗标签显示 */
+.ggg-avatar-picker-tags { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; max-width: 75px; }
+.ggg-avatar-picker-tag {
+    display: inline-block; padding: 0 4px; border-radius: 6px;
+    font-size: 0.55em; line-height: 1.4;
+    background: rgba(79,195,247,0.3); color: var(--SmartThemeBodyColor, #ddd);
+    white-space: nowrap; max-width: 70px;
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+.ggg-avatar-grid::-webkit-scrollbar { width: 4px; }
+.ggg-avatar-grid::-webkit-scrollbar-thumb { background: var(--SmartThemeBorderColor, #555); border-radius: 2px; }
+
+/* 头像选择弹窗 Tag 筛选栏 */
+.ggg-avatar-picker-tag-filter {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 0; margin-bottom: 6px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
+}
+
+/* 全局标签管理弹窗 */
+.ggg-tag-manager-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 4px; border-radius: 5px;
+    transition: background 0.15s;
+}
+.ggg-tag-manager-row:hover { background: rgba(255,255,255,0.04); }
+.ggg-tag-manager-name {
+    flex: 1; font-size: 0.9em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }

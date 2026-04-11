@@ -39,6 +39,31 @@
 .ggg-img-expand-tab:hover { opacity: 0.8; background: rgba(255,255,255,0.05); }
 .ggg-img-expand-tab.active { opacity: 1; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.12)); }
 
+/* ===== 展开区 - 图库筛选 ===== */
+.ggg-expand-gallery-filter {
+    display: none; align-items: center; gap: 4px;
+    padding: 4px 0 6px; margin-bottom: 4px;
+    flex-wrap: wrap; font-size: 0.82em;
+}
+.ggg-expand-filter-label { font-size: 0.8em; opacity: 0.5; flex-shrink: 0; }
+.ggg-expand-size-sort {
+    display: inline-flex; align-items: center; gap: 3px;
+    cursor: pointer; font-size: 0.82em; opacity: 0.8;
+    color: var(--SmartThemeBodyColor, #ccc);
+    padding: 2px 6px; border-radius: 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    transition: background 0.2s; user-select: none;
+    margin-left: auto;
+}
+.ggg-expand-size-sort:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+.ggg-expand-size-sort input[type="checkbox"] { width: 12px; height: 12px; cursor: pointer; }
+.ggg-expand-size-group-title {
+    grid-column: 1 / -1; font-size: 0.72em; font-weight: bold;
+    padding: 4px 2px 2px; opacity: 0.6;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
+    margin-bottom: 2px; margin-top: 2px;
+}
+
 .ggg-img-expand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 4px; max-height: 200px; overflow-y: auto; margin-bottom: 8px; }
 .ggg-img-expand-item { aspect-ratio: 1; border-radius: 4px; background-size: cover; background-position: center; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
 .ggg-img-expand-item:hover { border-color: var(--SmartThemeQuoteColor, #aaa); transform: scale(1.05); }
@@ -95,27 +120,37 @@
 .ggg-color-hex-input { width: 80px; padding: 2px 4px; font-size: 0.78em; font-family: monospace; border-radius: 3px; border: 1px solid var(--SmartThemeBorderColor, #555); background: var(--SmartThemeBlurTintColor, #222); color: var(--SmartThemeBodyColor, #ccc); }
 .ggg-color-hex-input:focus { outline: none; border-color: var(--SmartThemeQuoteColor, #aaa); }
 
-/* SVG 标识 */
-.ggg-svg-badge {
-    display: inline-block;
-    font-size: 0.65em;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background: rgba(100, 150, 255, 0.2);
-    color: var(--SmartThemeBodyColor);
-    opacity: 0.7;
-    margin-left: 4px;
-    vertical-align: middle;
-    line-height: 1.2;
-}
+/* ===== 尺寸行 ===== */
+.ggg-dim-row { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; }
+.ggg-dim-row-name { font-size: 0.8em; color: var(--SmartThemeBodyColor, #ccc); font-weight: bold; display: flex; align-items: center; gap: 6px; }
+.ggg-dim-prop-name { font-size: 0.85em; opacity: 0.5; font-family: monospace; font-weight: normal; }
+.ggg-dim-row-controls { display: flex; align-items: center; gap: 4px; }
+.ggg-dim-slider { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; border-radius: 3px; outline: none; cursor: pointer; background: var(--SmartThemeBorderColor, #555); }
+.ggg-dim-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid #888; cursor: pointer; }
+.ggg-dim-input { width: 60px; padding: 2px 4px; font-size: 0.78em; border-radius: 3px; border: 1px solid var(--SmartThemeBorderColor, #555); background: var(--SmartThemeBlurTintColor, #222); color: var(--SmartThemeBodyColor, #ccc); text-align: center; }
+.ggg-dim-unit { width: 48px; padding: 2px; font-size: 0.78em; border-radius: 3px; border: 1px solid var(--SmartThemeBorderColor, #555); background: var(--SmartThemeBlurTintColor, #222); color: var(--SmartThemeBodyColor, #ccc); }
 
 /* ===== 滚动条 ===== */
 #ggg-images-list::-webkit-scrollbar,
 #ggg-texts-list::-webkit-scrollbar,
 #ggg-colors-list::-webkit-scrollbar,
+#ggg-dims-list::-webkit-scrollbar,
+#ggg-themevars-list::-webkit-scrollbar,
 .ggg-img-expand-grid::-webkit-scrollbar { width: 4px; }
 
 #ggg-images-list::-webkit-scrollbar-thumb,
 #ggg-texts-list::-webkit-scrollbar-thumb,
 #ggg-colors-list::-webkit-scrollbar-thumb,
+#ggg-dims-list::-webkit-scrollbar-thumb,
+#ggg-themevars-list::-webkit-scrollbar-thumb,
 .ggg-img-expand-grid::-webkit-scrollbar-thumb { background: var(--SmartThemeBorderColor, #555); border-radius: 2px; }
+
+/* ===== 尺寸/主题变量列表 ===== */
+#ggg-dims-list, #ggg-themevars-list { display: flex; flex-direction: column; gap: 4px; max-height: 500px; overflow-y: auto; }
+
+/* ===== 抽屉 ===== */
+.ggg-drawer { border: 1px solid var(--SmartThemeBorderColor, #444); border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.ggg-drawer-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; font-size: 0.82em; font-weight: bold; color: var(--SmartThemeBodyColor, #ccc); background: rgba(255,255,255,0.03); user-select: none; transition: background 0.15s; }
+.ggg-drawer-header:hover { background: rgba(255,255,255,0.06); }
+.ggg-drawer-arrow { font-size: 0.75em; opacity: 0.6; transition: transform 0.2s; }
+.ggg-drawer-body { padding: 4px 0; }
