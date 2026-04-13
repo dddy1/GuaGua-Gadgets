@@ -1,0 +1,207 @@
+/* ============================================================
+   自定义CSS/HTML注入 面板样式
+   ============================================================ */
+
+/* 代码输入框 */
+#ggg-settings .ggg-code-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 180px;
+    resize: vertical;
+    font-family: 'Consolas', 'Fira Code', 'Source Code Pro', monospace;
+    font-size: 0.82em;
+    line-height: 1.6;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--SmartThemeBodyColor, #ddd);
+    outline: none;
+    transition: border-color 0.2s;
+    tab-size: 2;
+    margin-top: 8px;
+    box-shadow: none;
+}
+#ggg-settings .ggg-code-textarea:focus {
+    border-color: rgba(var(--SmartThemeQuoteColorRGB, 150, 150, 255), 0.6) !important;
+}
+
+/* 操作行 */
+.ggg-code-action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+/* 操作成功提示 */
+.ggg-code-tip {
+    font-size: 0.8em;
+    opacity: 0;
+    color: #7dde92;
+    transition: opacity 0.4s;
+}
+
+/* 导出/导入行 */
+.ggg-custom-io-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    flex-wrap: wrap;
+}
+.ggg-custom-io-label {
+    font-size: 0.78em;
+    opacity: 0.45;
+    flex-shrink: 0;
+}
+
+/* HTML注入：字段组 */
+.ggg-chtml-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 10px;
+}
+.ggg-chtml-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.ggg-chtml-field-label {
+    font-size: 0.8em;
+    opacity: 0.6;
+    flex-shrink: 0;
+    width: 72px;
+    text-align: right;
+}
+#ggg-settings .ggg-chtml-input {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    color: var(--SmartThemeBodyColor, #ddd) !important;
+    font-size: 0.83em !important;
+    outline: none !important;
+    box-shadow: none !important;
+    font-family: monospace;
+}
+#ggg-settings .ggg-chtml-input:focus {
+    border-color: rgba(var(--SmartThemeQuoteColorRGB, 150, 150, 255), 0.5) !important;
+}
+#ggg-settings .ggg-chtml-pos-select {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 8px !important;
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    color: var(--SmartThemeBodyColor, #ddd) !important;
+    font-size: 0.83em !important;
+    cursor: pointer;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 已注入片段列表 */
+.ggg-chtml-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ggg-chtml-empty {
+    font-size: 0.82em;
+    opacity: 0.35;
+    padding: 10px 0;
+    text-align: center;
+}
+.ggg-chtml-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 0.84em;
+    color: var(--SmartThemeBodyColor, #ddd);
+    transition: opacity 0.15s;
+}
+.ggg-chtml-item.ggg-chtml-disabled { opacity: 0.4; }
+.ggg-chtml-check-wrap { flex-shrink: 0; cursor: pointer; }
+.ggg-chtml-check-wrap input { cursor: pointer; width: 15px; height: 15px; }
+.ggg-chtml-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.ggg-chtml-pos-badge {
+    font-size: 0.76em;
+    opacity: 0.45;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    flex-shrink: 0;
+}
+#ggg-settings .ggg-chtml-btn-del {
+    flex-shrink: 0;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #ff6b6b !important;
+    cursor: pointer;
+    font-size: 0.85em;
+    padding: 2px 5px !important;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+#ggg-settings .ggg-chtml-btn-del:hover { opacity: 1 !important; }
+
+/* ---- AI 提示词框 ---- */
+.ggg-ai-prompt-box {
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+.ggg-ai-prompt-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ggg-ai-prompt-lang {
+    font-size: 0.75em;
+    font-family: monospace;
+    opacity: 0.5;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.ggg-ai-prompt-pre {
+    margin: 0;
+    font-family: 'Consolas', 'Fira Code', 'Source Code Pro', monospace;
+    font-size: 0.78em;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--SmartThemeBodyColor, #ccc);
+    opacity: 0.9;
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 12px 14px;
+}

@@ -8,6 +8,7 @@ import { extension_settings, renderExtensionTemplateAsync } from '../../../exten
 import { initUICustom, onThemeChangedUICustom, injectOverrideStyle } from './modules/ui-custom/ui-custom.js';
 import { initGallery, updateAvatarShape } from './modules/gallery/gallery.js';
 import { initFont } from './modules/font/font.js';
+import { initCustomCSS, injectCustomCSS, injectAllCustomHTML, onThemeChangedCustomCSS } from './modules/custom-css/custom-css.js';
 
 // ============================================================
 // 常量 & 导出
@@ -74,6 +75,7 @@ eventSource.on(event_types.APP_READY, async () => {
         loadModuleCSS('modules/ui-custom/ui-custom.css');
         loadModuleCSS('modules/gallery/gallery.css');
         loadModuleCSS('modules/font/font.css');
+        loadModuleCSS('modules/custom-css/custom-css.css');
 
         loadSettings();
         initTabs();
@@ -85,15 +87,23 @@ eventSource.on(event_types.APP_READY, async () => {
         initGallery();
         initBeautifyNav();
         initFont();
+        initCustomCSS();
+        injectCustomCSS();
+        injectAllCustomHTML();
 
         updateTabStates();
         updateUICustomVisibility();
+
+        // 所有模块初始化完成后，触发一次 ggg标记 重新扫描
+        // 确保「自定义CSS」中的 ggg-color 等标记能被「UI主题自定义」面板检测到
+        setTimeout(() => document.dispatchEvent(new CustomEvent('ggg-custom-css-saved')), 200);
 
         eventSource.on(event_types.SETTINGS_UPDATED, () => {
             updateAvatarShape();
             const newTheme = getThemeName();
             if (newTheme !== currentThemeName) {
-                onThemeChangedUICustom(newTheme);
+                onThemeChangedUICustom(newTheme); // 内部会调用 setCurrentThemeName
+                onThemeChangedCustomCSS();
             }
         });
 

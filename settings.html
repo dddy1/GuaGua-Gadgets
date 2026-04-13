@@ -101,6 +101,9 @@
                     <div class="ggg-beautify-nav-item" data-btab="font">
                         <i class="ggg-fa fa-solid fa-font"></i> 字体管理
                     </div>
+                    <div class="ggg-beautify-nav-item" data-btab="custom-css">
+                        <i class="ggg-fa fa-solid fa-code"></i> 自定义CSS
+                    </div>
                 </div>
 
                 <!-- UI主题自定义 子面板 -->
@@ -259,6 +262,200 @@
                 <!-- 字体管理 子面板 -->
                 <div class="ggg-beautify-subpanel" id="ggg-bpanel-font">
                     <div id="ggg-panel-font"></div>
+                </div>
+
+                <!-- 自定义CSS/HTML 子面板 -->
+                <div class="ggg-beautify-subpanel" id="ggg-bpanel-custom-css">
+
+                    <!-- ===== 自定义 CSS ===== -->
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-paintbrush"></i> 自定义 CSS
+                        </div>
+
+                        <div class="ggg-guide-wrapper" style="margin-bottom:6px;">
+                            <div class="ggg-guide-toggle" data-guide="custom-css-usage">
+                                <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
+                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            </div>
+                            <div class="ggg-guide-content" data-guide-content="custom-css-usage">
+                                <p>直接写 CSS，保存后立即注入酒馆页面。<b>绑定当前主题</b>，切换主题时自动切换对应的代码。</p>
+                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:4px 0 6px;">
+                                    <li>可用酒馆主题变量：<code>var(--SmartThemeBodyColor)</code>、<code>var(--SmartThemeQuoteColor)</code> 等</li>
+                                    <li>加入 <code>/* ggg-color: 名称 */</code> 标记 → 在「UI主题自定义」面板里可视化拾色修改</li>
+                                    <li>覆盖酒馆原样式加 <code>!important</code></li>
+                                </ul>
+                                <p style="opacity:0.6;font-size:0.85em;">刷新页面自动恢复。与酒馆主题文件无关，可用下方按钮单独导出/导入。</p>
+                            </div>
+                        </div>
+
+                        <textarea id="ggg-custom-css-textarea" class="ggg-code-textarea" placeholder="/* 在此输入你的 CSS 代码 */
+:root {
+    /* ggg-color: 自定义颜色 */
+    --my-color: #7b7bff;
+}"></textarea>
+                        <div class="ggg-code-action-row">
+                            <button id="ggg-custom-css-save" class="menu_button menu_button_icon ggg-code-save-btn">
+                                <i class="ggg-fa fa-solid fa-floppy-disk"></i>
+                                <span>保存并应用</span>
+                            </button>
+                            <span id="ggg-custom-css-tip" class="ggg-code-tip"></span>
+                        </div>
+
+                        <!-- 导出/导入 -->
+                        <div class="ggg-custom-io-row">
+                            <span class="ggg-custom-io-label">当前主题数据：</span>
+                            <button id="ggg-custom-export" class="menu_button menu_button_icon ggg-custom-io-btn">
+                                <i class="ggg-fa fa-solid fa-file-export"></i>
+                                <span>导出</span>
+                            </button>
+                            <button id="ggg-custom-import" class="menu_button menu_button_icon ggg-custom-io-btn">
+                                <i class="ggg-fa fa-solid fa-file-import"></i>
+                                <span>导入</span>
+                            </button>
+                            <input type="file" id="ggg-custom-import-file" accept=".json" style="display:none;">
+                            <span id="ggg-export-tip" class="ggg-code-tip"></span>
+                        </div>
+                    </div>
+
+                    <div class="ggg-section-divider"></div>
+
+                    <!-- ===== AI 提示词 ===== -->
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-robot"></i> AI 创作提示词
+                        </div>
+
+                        <div class="ggg-guide-wrapper">
+                            <div class="ggg-guide-toggle" data-guide="ai-prompt">
+                                <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i> 展开 / 复制 AI 提示词
+                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            </div>
+                            <div class="ggg-guide-content" data-guide-content="ai-prompt">
+                                <p style="font-size:0.84em;opacity:0.7;margin:0 0 8px;">把这段文字直接发给 AI，它就能按照本插件的规范帮你写代码。</p>
+                                <div class="ggg-ai-prompt-box">
+                                    <div class="ggg-ai-prompt-toolbar">
+                                        <span class="ggg-ai-prompt-lang">Prompt</span>
+                                        <button class="ggg-ai-prompt-copy menu_button menu_button_icon" id="ggg-ai-prompt-copy">
+                                            <i class="ggg-fa fa-solid fa-copy"></i>
+                                            <span>复制</span>
+                                        </button>
+                                    </div>
+                                    <pre id="ggg-ai-prompt-text" class="ggg-ai-prompt-pre">我正在使用 SillyTavern 扩展「呱呱小工具 (GuaGua Gadgets)」，请帮我编写自定义 CSS 或 HTML 注入代码。
+
+## 代码注入方式
+- 「自定义CSS」：直接注入酒馆页面的 &lt;style&gt; 标签，写标准 CSS 即可
+- 「HTML注入」：将任意 HTML / JS 插入页面 DOM，&lt;script&gt; 标签会被正确执行
+
+## ggg 特殊标记（写在 CSS 中，让插件面板可视化控制这些值）
+
+★ ggg-color — 颜色拾色器
+    .my-el {
+        /* ggg-color: 名称 */
+        background: #7b7bff;
+    }
+    /* 或写在同一行属性值前 */
+    .my-el { color: /* ggg-color: 名称 */ #fff; }
+
+★ ggg-img   — 图片路径替换
+    .avatar { /* ggg-img: 头像 */ background: url('/path/to/img.png'); }
+
+★ ggg-text  — 文字内容替换
+    .label::before { /* ggg-text: 标签文字 */ content: "示例"; }
+
+★ ggg-dim   — 数值（px / em / %）调整
+    .box { /* ggg-dim: 圆角 */ border-radius: 12px; }
+
+## 常用酒馆主题 CSS 变量（自动跟随当前主题）
+    --SmartThemeBodyColor        主文本颜色
+    --SmartThemeQuoteColor       引用/强调色（常用于高亮、按钮）
+    --SmartThemeBorderColor      边框颜色
+    --SmartThemeBlurTintColor    UI 半透明背景
+    --SmartThemeChatTintColor    聊天区背景
+    --SmartThemeShadowColor      阴影色
+
+## HTML 注入注意事项
+- 覆盖酒馆原有样式需加 !important
+- 悬浮元素用 position:fixed（不填目标选择器时插到 &lt;body&gt; 末尾）
+- 颜色优先用 CSS 变量或 ggg-color 标记，避免硬编码
+- JS 脚本直接写 &lt;script&gt;...&lt;/script&gt; 放入注入框，插件会自动执行
+
+## 请帮我实现：
+[在这里描述你想要的效果]</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ggg-section-divider"></div>
+
+                    <!-- ===== 自定义 HTML / JS 注入 ===== -->
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-code"></i> 自定义 HTML / JS 注入
+                        </div>
+
+                        <div class="ggg-guide-wrapper" style="margin-bottom:6px;">
+                            <div class="ggg-guide-toggle" data-guide="custom-html-usage">
+                                <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
+                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            </div>
+                            <div class="ggg-guide-content" data-guide-content="custom-html-usage">
+                                <p>将任意 HTML 代码（包括 <code>&lt;script&gt;</code> 脚本）插入到酒馆页面 DOM 中，绑定当前主题。</p>
+
+                                <p style="margin:6px 0 2px;"><b>三个字段的含义：</b></p>
+                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:0 0 8px;">
+                                    <li><b>片段名称</b>：只是给这条记录起个你自己看得懂的名字，显示在下方列表里，不影响任何功能。</li>
+                                    <li><b>目标选择器</b>：留空则插到 <code>&lt;body&gt;</code> 末尾（最常用）；也可以填酒馆某个元素的 CSS 选择器（如 <code>#chat</code>、<code>.mes_block</code>）把代码插到指定位置。</li>
+                                    <li><b>插入位置</b>：相对目标元素，可选「内部末尾 / 内部开头 / 元素之后 / 元素之前」。不填目标选择器时此项无效。</li>
+                                </ul>
+
+                                <p style="margin:0 0 2px;"><b>常见用途：</b></p>
+                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:0 0 6px;">
+                                    <li>悬浮装饰元素 → 不填选择器，代码里用 <code>position:fixed</code> 定位</li>
+                                    <li>运行 JS 脚本 → 把 <code>&lt;script&gt;...&lt;/script&gt;</code> 直接粘进来，插件会正确执行它</li>
+                                    <li>插入到聊天区前 → 目标选择器填 <code>#chat</code>，位置选「内部开头」</li>
+                                </ul>
+                                <p style="opacity:0.6;font-size:0.85em;">刷新页面自动重新注入，主题切换时随之切换。</p>
+                            </div>
+                        </div>
+
+                        <textarea id="ggg-custom-html-textarea" class="ggg-code-textarea" style="min-height:110px;"
+                            placeholder="<!-- 普通 HTML -->&#10;<div style=&quot;position:fixed;bottom:20px;right:20px;&quot;>装饰</div>&#10;&#10;<!-- 或者 JS 脚本 -->&#10;<script>console.log('呱！');&lt;/script>"></textarea>
+
+                        <div class="ggg-chtml-fields">
+                            <div class="ggg-chtml-field">
+                                <span class="ggg-chtml-field-label">片段名称</span>
+                                <input id="ggg-custom-html-label" class="ggg-chtml-input" type="text"
+                                    placeholder="随便填，只是备注，可留空">
+                            </div>
+                            <div class="ggg-chtml-field">
+                                <span class="ggg-chtml-field-label">目标选择器</span>
+                                <input id="ggg-custom-html-target" class="ggg-chtml-input" type="text"
+                                    placeholder="留空 = body末尾（推荐）；或填 #chat / .mes_block 等">
+                            </div>
+                            <div class="ggg-chtml-field">
+                                <span class="ggg-chtml-field-label">插入位置</span>
+                                <select id="ggg-custom-html-pos" class="ggg-chtml-pos-select">
+                                    <option value="beforeend">目标内部末尾（默认）</option>
+                                    <option value="afterbegin">目标内部开头</option>
+                                    <option value="afterend">目标元素之后</option>
+                                    <option value="beforebegin">目标元素之前</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="ggg-code-action-row" style="margin-top:12px;">
+                            <button id="ggg-custom-html-add" class="menu_button menu_button_icon ggg-chtml-add-btn">
+                                <i class="ggg-fa fa-solid fa-arrow-up-from-bracket"></i>
+                                <span>注入到页面</span>
+                            </button>
+                            <span id="ggg-custom-html-tip" class="ggg-code-tip"></span>
+                        </div>
+
+                        <div id="ggg-custom-html-list" class="ggg-chtml-list"></div>
+                    </div>
+
                 </div>
             </div>
 

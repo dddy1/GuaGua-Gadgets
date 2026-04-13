@@ -73,6 +73,9 @@ export function onThemeChangedUICustom(newTheme) {
     if (el) el.textContent = newTheme;
 }
 
+/** 监听自定义CSS保存事件，重新扫描 ggg 标记（让颜色/图片等面板即时更新） */
+document.addEventListener('ggg-custom-css-saved', () => scanCSS());
+
 export function injectOverrideStyle() {
     let styleEl = document.getElementById(OVERRIDE_STYLE_ID);
     if (!styleEl) {
@@ -461,7 +464,10 @@ function refreshPresetList() {
 // ============================================================
 function scanCSS() {
     const ctx = SillyTavern.getContext();
-    const cssText = ctx.powerUserSettings?.custom_css || '';
+    // 同时扫描酒馆自带 custom_css 和呱呱插件的自定义CSS（支持所有 ggg 标记）
+    const powerCSS  = ctx.powerUserSettings?.custom_css || '';
+    const gggCSS    = getThemeData().customCSS || '';
+    const cssText   = powerCSS + (gggCSS ? '\n/* === ggg-custom-css === */\n' + gggCSS : '');
 
     parsedImages = []; parsedTexts = []; parsedColors = []; parsedDims = [];
     let match;
