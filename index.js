@@ -12,6 +12,10 @@ import { initCustomCSS, injectCustomCSS, injectAllCustomHTML, onThemeChangedCust
 import { initWorldInfoSheet } from './modules/world-info-sheet/world-info-sheet.js';
 import { initSelectSheet } from './modules/select-sheet/select-sheet.js';
 import { initPhone } from './modules/phone/phone.js';
+import { initFontRescue } from './modules/font-rescue/font-rescue.js';
+
+// 紧急救援：启动时立即注册检测，与 ST 设置加载顺序无关
+initFontRescue();
 
 // ============================================================
 // 常量 & 导出

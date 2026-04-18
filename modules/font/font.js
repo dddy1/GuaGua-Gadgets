@@ -1041,6 +1041,16 @@ async function showUpdateFontPopup(font) {
 // 样式注入
 // ============================================================
 
+// 字号越界复原后，防抖保存（避免一次循环里多次保存）
+let _clampSaveTimer = null;
+function _scheduleSaveAfterClamp() {
+    if (_clampSaveTimer) return;
+    _clampSaveTimer = setTimeout(() => {
+        _clampSaveTimer = null;
+        try { saveAllSettings(); } catch (e) { console.warn('[ggg-font] 复原后保存失败：', e); }
+    }, 300);
+}
+
 function injectFontStyles() {
     let styleEl = document.getElementById('ggg-fonts');
     if (!styleEl) {
@@ -1100,6 +1110,21 @@ function injectFontStyles() {
         if (selectors.length === 0) return;
 
         const fontFamily = `'${font.fontFaceName || font.name}'`;
+
+        // 紧急救援：字号越界 ( > 3em/48px 或 < 0.5em/10px ) 自动复原为默认 (null)
+        if (font.fontSize?.value != null) {
+            const v = parseFloat(font.fontSize.value);
+            const unit = (font.fontSize.unit || 'px').toLowerCase();
+            const px = (unit === 'em' || unit === 'rem') ? v * 16
+                : (unit === '%') ? v * 0.16
+                : v;
+            if (!isFinite(px) || px > 48 || px < 10) {
+                console.warn(`[ggg-font] 字号越界 (${v}${unit} ≈ ${px}px)，已自动复原默认`);
+                font.fontSize = null;
+                _scheduleSaveAfterClamp();
+            }
+        }
+
         const sizeCSS = font.fontSize?.value ? `font-size: ${font.fontSize.value}${font.fontSize.unit || 'px'} !important;` : '';
         rules += `${selectors.join(', ')} { font-family: ${fontFamily}, sans-serif !important; ${sizeCSS} }\n`;
     });
