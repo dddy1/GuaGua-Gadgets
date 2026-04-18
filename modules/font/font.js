@@ -14,7 +14,7 @@ import { saveFontData, getFontData, deleteFontData, getAllFontData } from './fon
 
 /** 预设作用范围 */
 const FONT_SCOPES = [
-    { key: 'global',    label: '全局',     selector: 'body, button, input, select, textarea, #options a, ul, li, pre, code, .text_pole, #send_textarea, textarea.mdHotkeys, #send_textarea.mdHotkeys' },
+    { key: 'global',    label: '全局',     selector: 'body, button, input, select, textarea, #options a, ul, li, pre, code, .text_pole, #send_textarea, textarea.mdHotkeys, #send_textarea.mdHotkeys, .swipes-counter' },
     { key: 'chat',      label: '聊天窗口', selector: '#chat' },
     { key: 'mes_text',  label: '消息文字', selector: '.mes_text' },
     { key: 'name_text', label: '角色名称', selector: '.name_text' },
@@ -259,12 +259,13 @@ async function handleFileImport(file) {
     const fontEntry = { id, fontFaceName, format };
     await registerFontFace(fontEntry, arrayBuffer);
 
-    // 添加元数据到列表
+    // 添加元数据到列表：用户改过名字则不再使用解析出的 zh/en 名（否则显示处会覆盖用户输入）
+    const userCustomized = finalName !== defaultName;
     const newFont = {
         id,
         name: finalName,
-        zhName: nameInfo.zhName || '',
-        enName: nameInfo.enName || '',
+        zhName: userCustomized ? '' : (nameInfo.zhName || ''),
+        enName: userCustomized ? '' : (nameInfo.enName || ''),
         fontFaceName,
         type: 'file',
         format,
@@ -382,6 +383,32 @@ async function showPrefetchWarning(reason, mode) {
 // 字体导入 — 在线字体
 // ============================================================
 
+/** 从原始 CSS 文本（含注释）里提取中/英文字体名，优先中文。
+ *  支持 ZeoSeven / cn-font-split 风格的 `FontFamilyName 名字` 注释行。 */
+function extractNamesFromCSSText(rawCss) {
+    const result = { zhName: '', enName: '' };
+    if (!rawCss) return result;
+    const isCJK = s => /[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(s);
+    // 1) FontFamilyName / FullFontName 注释行（cn-font-split 元数据）
+    const lineRe = /(?:FontFamilyName|FullFontName)\s+([^\n*\/]+?)\s*(?:\n|\*\/|\*)/g;
+    let m;
+    while ((m = lineRe.exec(rawCss)) !== null) {
+        const name = m[1].trim().replace(/^[:\s]+|[:\s]+$/g, '');
+        if (!name) continue;
+        if (isCJK(name) && !result.zhName) result.zhName = name;
+        else if (!result.enName) result.enName = name;
+    }
+    // 2) 退路：@font-face 内的 font-family 中含 CJK 字符也算中文名
+    if (!result.zhName) {
+        const famRe = /font-family\s*:\s*["']?([^"';\n}]+?)["']?\s*[;\n}]/gi;
+        while ((m = famRe.exec(rawCss)) !== null) {
+            const n = m[1].trim();
+            if (isCJK(n)) { result.zhName = n; break; }
+        }
+    }
+    return result;
+}
+
 async function importOnlineFont(input) {
     const trimmed = input.trim();
 
@@ -390,12 +417,17 @@ async function importOnlineFont(input) {
     if (rawFontFaceMatch) {
         // 收集所有 @font-face 块
         const allFontFaceBlocks = [...trimmed.matchAll(/@font-face\s*\{[^}]*\}/gi)].map(m => m[0]);
-        // 提取第一个 font-family 名
+        // 优先从 CSS 注释（FontFamilyName/FullFontName）提取中文名
+        const cssNames = extractNamesFromCSSText(trimmed);
+        // 提取第一个 font-family 名作为英文回退
         let fontName = '';
         for (const block of allFontFaceBlocks) {
             const fam = block.match(/font-family\s*:\s*["']?([^"';\n}]+?)["']?\s*[;\n}]/i);
             if (fam) { fontName = fam[1].trim(); break; }
         }
+        // 中文名优先：注释里的中文 > 注释里的英文 > font-family
+        const preferredName = cssNames.zhName || cssNames.enName || fontName;
+        if (preferredName) fontName = preferredName;
         if (!fontName) fontName = '自定义字体';
 
         // 尝试从 @font-face 的 src 中提取并下载字体文件（绕过 CDN Origin 限制）
@@ -477,10 +509,20 @@ async function importOnlineFont(input) {
 
         if (downloaded) {
             // 成功下载 → 存为本地文件字体，彻底绕过 CDN 限制
+            // 优先级：CSS 注释中文名 > 字体文件 name table > CSS @font-face 名
+            // (cn-font-split 切片字体的 name table 通常被剥离，CSS 注释最可靠)
+            const niBuf = parseFontNameTable(downloaded.buffer);
+            const displayName = cssNames.zhName || niBuf.zhName || cssNames.enName || niBuf.enName || fontName;
+            const ni = {
+                zhName: cssNames.zhName || niBuf.zhName || '',
+                enName: cssNames.enName || niBuf.enName || '',
+            };
+
             const id = `font_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
             const fontFaceName = `ggg-local-${id}`;
             const metaSnapshot = {
-                id, name: fontName, zhName: '', enName: '',
+                id, name: displayName,
+                zhName: ni.zhName || '', enName: ni.enName || '',
                 fontFaceName, type: 'file',
                 format: downloaded.format, filename: downloaded.filename,
             };
@@ -496,8 +538,9 @@ async function importOnlineFont(input) {
             await registerFontFace({ id, fontFaceName, format: downloaded.format }, downloaded.buffer);
             fontSettings.list.push({
                 id,
-                name: fontName,
-                zhName: '', enName: '',
+                name: displayName,
+                zhName: ni.zhName || '',
+                enName: ni.enName || '',
                 fontFaceName,
                 type: 'file',
                 format: downloaded.format,
@@ -513,7 +556,7 @@ async function importOnlineFont(input) {
             saveAllSettings();
             refreshFontPanel();
             injectFontStyles();
-            toastr.success(`已下载并本地化字体: ${fontName}（避免 CDN 来源限制）`);
+            toastr.success(`已下载并本地化字体: ${displayName}（避免 CDN 来源限制）`);
         } else {
             // 无法下载（全部 URL 均被 CORS 阻断）→ 退回 rawCSS 存储，并提示用户
             const id = `font_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
@@ -1120,12 +1163,6 @@ function renderFontPanel() {
                 </div>
             </div>` : ''}
 
-            <!-- 正在使用的字体 -->
-            <div class="ggg-font-section">
-                <div class="ggg-font-section-title"><i class="ggg-fa fa-solid fa-font"></i> 正在使用的字体</div>
-                <div id="ggg-font-active-row" class="ggg-font-active-row"></div>
-            </div>
-
             <!-- 工具栏 -->
             <div class="ggg-font-toolbar">
                 <div id="ggg-font-btn-import" class="menu_button menu_button_icon ggg-btn-small" title="导入字体">
@@ -1211,7 +1248,6 @@ function renderFontPanel() {
     `;
 
     bindFontPanelEvents();
-    refreshActiveFonts();
     refreshFontList();
     refreshTagBar();
     renderGlobalSelectors();
@@ -1219,7 +1255,6 @@ function renderFontPanel() {
 
 /** 仅刷新面板内容（不重建 HTML 骨架） */
 function refreshFontPanel() {
-    refreshActiveFonts();
     refreshFontList();
     refreshTagBar();
     renderGlobalSelectors();
@@ -1242,17 +1277,28 @@ function refreshActiveFonts() {
     row.innerHTML = active.map(f => {
         const ff = `'${f.fontFaceName || f.name}', sans-serif`;
         const displayName = f.zhName || f.name;
-        const scopeChips = FONT_SCOPES.map(s =>
-            `<span class="ggg-fscope-chip ${(f.scopes || []).includes(s.key) ? 'active' : ''}" data-fid="${escapeAttr(f.id)}" data-scope="${s.key}">${s.label}</span>`
-        ).join('');
+        const scopes = f.scopes || [];
+        // 已选 chip：横向滚动显示
+        const activeChips = FONT_SCOPES
+            .filter(s => scopes.includes(s.key))
+            .map(s => `<span class="ggg-fscope-chip active" data-fid="${escapeAttr(f.id)}" data-scope="${s.key}">${s.label}</span>`)
+            .join('');
+        // 未选 chip：默认折叠，点 + 展开
+        const inactiveChips = FONT_SCOPES
+            .filter(s => !scopes.includes(s.key))
+            .map(s => `<span class="ggg-fscope-chip" data-fid="${escapeAttr(f.id)}" data-scope="${s.key}">${s.label}</span>`)
+            .join('');
         return `
-        <div class="ggg-font-active-item">
+        <div class="ggg-font-active-item" data-fid="${escapeAttr(f.id)}">
             <span class="ggg-font-active-name" style="font-family:${ff} !important;">${escapeHtml(displayName)}</span>
-            <div class="ggg-font-active-scopes">${scopeChips}</div>
+            <div class="ggg-font-active-scopes-active">${activeChips || '<span class="ggg-font-active-empty">未选范围</span>'}</div>
+            ${inactiveChips ? `<button class="ggg-font-active-add" data-fid="${escapeAttr(f.id)}" title="添加范围"><i class="ggg-fa fa-solid fa-plus"></i></button>` : ''}
+            <div class="ggg-font-active-scopes-more" data-fid="${escapeAttr(f.id)}" style="display:none;">${inactiveChips}</div>
+            <button class="ggg-font-active-disable" data-fid="${escapeAttr(f.id)}" title="取消选择此字体"><i class="ggg-fa fa-solid fa-xmark"></i></button>
         </div>`;
     }).join('');
 
-    // 绑定范围 chip 点击（可直接在此修改生效范围）
+    // 绑定 chip 点击：增减字体的 scope
     row.querySelectorAll('.ggg-fscope-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             const fid = chip.dataset.fid;
@@ -1266,13 +1312,34 @@ function refreshActiveFonts() {
             saveAllSettings();
             injectFontStyles();
             refreshActiveFonts();
-            // 同步更新列表中的 scope 展示
             const expandedSettings = document.querySelector(`.ggg-fitem-settings[data-fsettings="${CSS.escape(fid)}"]`);
             if (expandedSettings) {
                 expandedSettings.querySelectorAll('.ggg-fscope-chip').forEach(c => {
                     c.classList.toggle('active', font.scopes.includes(c.dataset.scope));
                 });
             }
+        });
+    });
+
+    // 「+」按钮：展开/收起未选 chip
+    row.querySelectorAll('.ggg-font-active-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const more = row.querySelector(`.ggg-font-active-scopes-more[data-fid="${CSS.escape(btn.dataset.fid)}"]`);
+            if (!more) return;
+            more.style.display = more.style.display === 'none' ? 'flex' : 'none';
+            btn.classList.toggle('open', more.style.display !== 'none');
+        });
+    });
+
+    // 「✕」取消选择：禁用此字体
+    row.querySelectorAll('.ggg-font-active-disable').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const font = fontSettings.list.find(f => f.id === btn.dataset.fid);
+            if (!font) return;
+            font.enabled = false;
+            saveAllSettings();
+            injectFontStyles();
+            refreshFontPanel();
         });
     });
 }
@@ -1319,27 +1386,30 @@ function getFilteredGroupedFonts() {
         return true;
     });
 
-    // 按 tag 分组（无 tag 归入"未分类"）
+    // 已启用字体单独成组，置顶显示（实现：已选择的字体出现在第一页顶部）
+    const enabledFonts  = filtered.filter(f => f.enabled);
+    const disabledFonts = filtered.filter(f => !f.enabled);
+    enabledFonts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'));
+
+    const items = [];
+    enabledFonts.forEach((font, idx) => {
+        items.push({ font, groupTag: '__enabled__', isGroupFirst: idx === 0 });
+    });
+
+    // 未启用按 tag 分组
     const groups = {};
-    filtered.forEach(f => {
+    disabledFonts.forEach(f => {
         const sortedTags = (f.tags || []).slice().sort((a, b) => a.localeCompare(b, 'zh'));
         const groupKey = sortedTags[0] || '';
         if (!groups[groupKey]) groups[groupKey] = [];
         groups[groupKey].push(f);
     });
-
-    // 组内按字体名排序
     Object.values(groups).forEach(g => g.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh')));
-
-    // 按组名排序（无 tag 组排到最后）
     const sortedKeys = Object.keys(groups).sort((a, b) => {
         if (a === '' && b !== '') return 1;
         if (b === '' && a !== '') return -1;
         return a.localeCompare(b, 'zh');
     });
-
-    // 展开为平坦列表，记录分组信息
-    const items = [];
     sortedKeys.forEach(key => {
         groups[key].forEach((font, idx) => {
             items.push({ font, groupTag: key, isGroupFirst: idx === 0 });
@@ -1377,7 +1447,7 @@ function refreshFontList() {
     let lastGroup = Symbol(); // 确保第一个分组一定渲染标题
     pageFonts.forEach(({ font, groupTag }) => {
         if (groupTag !== lastGroup) {
-            const groupLabel = groupTag || '未分类';
+            const groupLabel = groupTag === '__enabled__' ? '已启用' : (groupTag || '未分类');
             html += `<div class="ggg-font-group-title">${escapeHtml(groupLabel)}</div>`;
             lastGroup = groupTag;
         }

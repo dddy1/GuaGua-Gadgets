@@ -2,7 +2,9 @@
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
             <b>呱呱小工具</b>
-            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+            <div
+                class="inline-drawer-icon fa-solid fa-circle-chevron-down"
+            ></div>
         </div>
         <div class="inline-drawer-content">
             <!-- 功能标签页 -->
@@ -16,8 +18,8 @@
                 <div class="ggg-tab" data-tab="tools" title="工具">
                     <i class="ggg-fa fa-solid fa-toolbox"></i> 工具
                 </div>
-                <div class="ggg-tab" data-tab="achievement" title="成就">
-                    <i class="ggg-fa fa-solid fa-trophy"></i> 成就
+                <div class="ggg-tab" data-tab="achievement" title="玩具">
+                    <i class="ggg-fa fa-solid fa-dice"></i> 玩具
                 </div>
                 <div class="ggg-tab" data-tab="phone" title="手机">
                     <i class="ggg-fa fa-solid fa-mobile-screen"></i> 手机
@@ -30,19 +32,36 @@
             <!-- ========== 呱！主设置面板 ========== -->
             <div id="ggg-panel-main" class="ggg-panel active">
                 <div class="ggg-section-block">
-                    <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-sliders"></i> 开关</div>
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-sliders"></i> 开关
+                    </div>
                     <label class="ggg-toggle-label">
-                        <input type="checkbox" id="ggg-master-toggle" checked>
-                        <i class="ggg-fa fa-solid fa-power-off ggg-toggle-icon"></i>
+                        <input type="checkbox" id="ggg-master-toggle" checked />
+                        <i
+                            class="ggg-fa fa-solid fa-power-off ggg-toggle-icon"
+                        ></i>
                         <span>启用呱呱小工具</span>
                     </label>
-                    <div id="ggg-feature-toggles-section" class="ggg-feature-toggles-inline">
+                    <div
+                        id="ggg-feature-toggles-section"
+                        class="ggg-feature-toggles-inline"
+                    >
                         <label class="ggg-toggle-label ggg-toggle-sub">
-                            <input type="checkbox" id="ggg-toggle-beautify" data-feature="beautify" checked>
+                            <input
+                                type="checkbox"
+                                id="ggg-toggle-beautify"
+                                data-feature="beautify"
+                                checked
+                            />
                             <span>美化</span>
                         </label>
                         <label class="ggg-toggle-label ggg-toggle-sub">
-                            <input type="checkbox" id="ggg-toggle-tools" data-feature="tools" checked>
+                            <input
+                                type="checkbox"
+                                id="ggg-toggle-tools"
+                                data-feature="tools"
+                                checked
+                            />
                             <span>工具</span>
                         </label>
                     </div>
@@ -51,21 +70,47 @@
                 <div class="ggg-section-divider"></div>
 
                 <!-- 使用条款与声明 -->
-                <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-file-contract"></i> 使用条款与声明</div>
+                <div class="ggg-section-title">
+                    <i class="ggg-fa fa-solid fa-file-contract"></i>
+                    使用条款与声明
+                </div>
 
                 <div class="ggg-guide-wrapper">
                     <div class="ggg-guide-toggle" data-guide="terms">
-                        <i class="ggg-fa fa-solid fa-circle-info"></i> 使用须知与声明
-                        <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                        <i class="ggg-fa fa-solid fa-circle-info"></i>
+                        使用须知与声明
+                        <i
+                            class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"
+                        ></i>
                     </div>
                     <div class="ggg-guide-content" data-guide-content="terms">
-                        <p>本插件（呱呱小工具）是一个面向 SillyTavern 的第三方扩展，仅供学习和个人使用。</p>
-                        <p><b>禁止商业使用：</b>本插件及其衍生作品禁止用于任何商业目的，包括但不限于销售、出售授权或将其作为商业产品的一部分。</p>
-                        <p><b>免责声明：</b>本插件与 SillyTavern 官方团队无关。使用本插件所产生的一切后果由用户自行承担，作者不承担任何直接或间接责任。</p>
-                        <p><b>字体版权：</b>通过本插件导入的字体文件需遵守相应的字体授权协议，请确保您有权使用该字体。</p>
-                        <p><b>图片版权：</b>上传至图库的图片请遵守相关版权法律法规。</p>
-                        <p><b>数据安全：</b>所有数据（字体、图片、设置）均存储在用户本地浏览器，不上传至任何服务器。</p>
-                        <p style="opacity:0.65;font-size:0.85em;">如有问题或建议，欢迎反馈。感谢使用呱呱小工具！</p>
+                        <p>
+                            本插件（呱呱小工具）是一个面向 SillyTavern
+                            的第三方扩展，仅供学习和个人使用。
+                        </p>
+                        <p>
+                            <b>禁止商业使用：</b
+                            >本插件及其衍生作品禁止用于任何商业目的，包括但不限于销售、出售授权或将其作为商业产品的一部分。
+                        </p>
+                        <p>
+                            <b>免责声明：</b>本插件与 SillyTavern
+                            官方团队无关。使用本插件所产生的一切后果由用户自行承担，作者不承担任何直接或间接责任。
+                        </p>
+                        <p>
+                            <b>字体版权：</b
+                            >通过本插件导入的字体文件需遵守相应的字体授权协议，请确保您有权使用该字体。
+                        </p>
+                        <p>
+                            <b>图片版权：</b
+                            >上传至图库的图片请遵守相关版权法律法规。
+                        </p>
+                        <p>
+                            <b>数据安全：</b
+                            >所有数据（字体、图片、设置）均存储在用户本地浏览器，不上传至任何服务器。
+                        </p>
+                        <p style="opacity: 0.65; font-size: 0.85em">
+                            如有问题或建议，欢迎反馈。感谢使用呱呱小工具！
+                        </p>
                     </div>
                 </div>
 
@@ -73,7 +118,9 @@
 
                 <!-- 鸣谢 -->
                 <div class="ggg-credits-card">
-                    <div class="ggg-credits-title"><i class="ggg-fa fa-solid fa-heart"></i> 鸣谢</div>
+                    <div class="ggg-credits-title">
+                        <i class="ggg-fa fa-solid fa-heart"></i> 鸣谢
+                    </div>
                     <div class="ggg-credits-content">
                         <span>Claude（主要开发协作）</span>
                         <span class="ggg-credits-sep">·</span>
@@ -81,11 +128,30 @@
                         <span class="ggg-credits-sep">·</span>
                         <span>Gemini（方案讨论）</span>
                     </div>
-                    <div class="ggg-credits-content" style="margin-top:6px;">
+                    <div class="ggg-credits-content" style="margin-top: 6px">
                         <span>
-                            <a href="https://github.com/Lianues/st-api-wrapper" target="_blank" rel="noopener" style="color:var(--SmartThemeQuoteColor,#aaa);text-decoration:underline;">@Lianues</a>
+                            <a
+                                href="https://github.com/Lianues/st-api-wrapper"
+                                target="_blank"
+                                rel="noopener"
+                                style="
+                                    color: var(--SmartThemeQuoteColor, #aaa);
+                                    text-decoration: underline;
+                                "
+                                >@Lianues</a
+                            >
                             的插件开发教程
-                            <a href="https://github.com/Lianues/st-api-wrapper/tree/main/docs" target="_blank" rel="noopener" style="color:var(--SmartThemeQuoteColor,#aaa);text-decoration:underline;font-size:0.85em;">（查看文档）</a>
+                            <a
+                                href="https://github.com/Lianues/st-api-wrapper/tree/main/docs"
+                                target="_blank"
+                                rel="noopener"
+                                style="
+                                    color: var(--SmartThemeQuoteColor, #aaa);
+                                    text-decoration: underline;
+                                    font-size: 0.85em;
+                                "
+                                >（查看文档）</a
+                            >
                         </span>
                     </div>
                 </div>
@@ -95,112 +161,250 @@
             <div id="ggg-panel-beautify" class="ggg-panel">
                 <!-- 二级导航栏 -->
                 <div class="ggg-beautify-nav">
-                    <div class="ggg-beautify-nav-item active" data-btab="ui-custom">
-                        <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i> UI主题自定义
+                    <div
+                        class="ggg-beautify-nav-item active"
+                        data-btab="ui-custom"
+                    >
+                        <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i>
+                        UI主题自定义
                     </div>
                     <div class="ggg-beautify-nav-item" data-btab="font">
                         <i class="ggg-fa fa-solid fa-font"></i> 字体管理
                     </div>
                     <div class="ggg-beautify-nav-item" data-btab="custom-css">
-                        <i class="ggg-fa fa-solid fa-code"></i> 自定义CSS
+                        <i class="ggg-fa fa-solid fa-code"></i> 注入HTML
                     </div>
                 </div>
 
                 <!-- UI主题自定义 子面板 -->
-                <div class="ggg-beautify-subpanel active" id="ggg-bpanel-ui-custom">
+                <div
+                    class="ggg-beautify-subpanel active"
+                    id="ggg-bpanel-ui-custom"
+                >
                     <div class="ggg-section-block">
-                        <p style="font-size:0.82em;opacity:0.8;margin:0 0 8px;">
+                        <p
+                            style="
+                                font-size: 0.82em;
+                                opacity: 0.8;
+                                margin: 0 0 8px;
+                            "
+                        >
                             UI主题自定义面板位于：用户设置 → 主题颜色 上方
                         </p>
                         <label class="ggg-toggle-label">
-                            <input type="checkbox" id="ggg-toggle-ui-custom" checked>
-                            <i class="ggg-fa fa-solid fa-wand-magic-sparkles ggg-toggle-icon"></i>
+                            <input
+                                type="checkbox"
+                                id="ggg-toggle-ui-custom"
+                                checked
+                            />
+                            <i
+                                class="ggg-fa fa-solid fa-wand-magic-sparkles ggg-toggle-icon"
+                            ></i>
                             <span>启用UI主题自定义</span>
                         </label>
                     </div>
 
                     <!-- UI主题自定义使用说明 -->
-                    <div class="ggg-guide-wrapper" style="margin-top:6px;">
-                        <div class="ggg-guide-toggle" data-guide="uicustom-usage">
-                            <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
-                            <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                    <div class="ggg-guide-wrapper" style="margin-top: 6px">
+                        <div
+                            class="ggg-guide-toggle"
+                            data-guide="uicustom-usage"
+                        >
+                            <i class="ggg-fa fa-solid fa-circle-info"></i>
+                            使用说明
+                            <i
+                                class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"
+                            ></i>
                         </div>
-                        <div class="ggg-guide-content" data-guide-content="uicustom-usage">
-                            <p>在自定义CSS中为属性添加<b>标记注释</b>，即可在上方面板中可视化修改图片、文字、颜色和尺寸。</p>
-                            <strong style="display:block;margin-bottom:6px;">注意：同一面板中标记名称不能重复！</strong>
+                        <div
+                            class="ggg-guide-content"
+                            data-guide-content="uicustom-usage"
+                        >
+                            <p>
+                                在自定义CSS中为属性添加<b>标记注释</b>，即可在上方面板中可视化修改图片、文字、颜色和尺寸。
+                            </p>
+                            <strong style="display: block; margin-bottom: 6px"
+                                >注意：同一面板中标记名称不能重复！</strong
+                            >
 
                             <div class="ggg-guide-subtitle">标记格式</div>
                             <div class="ggg-guide-marks">
                                 <div class="ggg-guide-mark-row">
-                                    <span class="ggg-guide-mark-label">图片</span>
+                                    <span class="ggg-guide-mark-label"
+                                        >图片</span
+                                    >
                                     <code>/* ggg-img: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-img: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-img-user: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-user: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-img-user: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-img-char: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-img-char: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-img-char: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-desc">放在 url('...') 的前面（同一行或上一行均可）</div>
+                                <div class="ggg-guide-mark-desc">
+                                    放在 url('...') 的前面（同一行或上一行均可）
+                                </div>
 
                                 <div class="ggg-guide-mark-row">
-                                    <span class="ggg-guide-mark-label">文字</span>
+                                    <span class="ggg-guide-mark-label"
+                                        >文字</span
+                                    >
                                     <code>/* ggg-text: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-text: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-text-user: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-user: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-text-user: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-text-char: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-text-char: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-text-char: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-desc">放在 content: "..." 的前面（同一行或上一行均可）</div>
+                                <div class="ggg-guide-mark-desc">
+                                    放在 content: "..."
+                                    的前面（同一行或上一行均可）
+                                </div>
 
                                 <div class="ggg-guide-mark-row">
-                                    <span class="ggg-guide-mark-label">颜色</span>
+                                    <span class="ggg-guide-mark-label"
+                                        >颜色</span
+                                    >
                                     <code>/* ggg-color: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-color: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-color-user: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-user: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-color-user: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-color-char: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-color-char: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-color-char: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-desc">放在颜色值或CSS变量声明的前面（同一行或上一行均可）</div>
+                                <div class="ggg-guide-mark-desc">
+                                    放在颜色值或CSS变量声明的前面（同一行或上一行均可）
+                                </div>
 
                                 <div class="ggg-guide-mark-row">
-                                    <span class="ggg-guide-mark-label">尺寸</span>
+                                    <span class="ggg-guide-mark-label"
+                                        >尺寸</span
+                                    >
                                     <code>/* ggg-dim: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-dim: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-dim-user: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim-user: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-dim-user: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-row" style="padding-left:30px;">
+                                <div
+                                    class="ggg-guide-mark-row"
+                                    style="padding-left: 30px"
+                                >
                                     <code>/* ggg-dim-char: 名称 */</code>
-                                    <i class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable" data-copy="/* ggg-dim-char: 名称 */" title="点击复制"></i>
+                                    <i
+                                        class="ggg-fa fa-solid fa-copy ggg-copy-icon ggg-copyable"
+                                        data-copy="/* ggg-dim-char: 名称 */"
+                                        title="点击复制"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-mark-desc">放在CSS数值属性（如 top、width、height 等）的上一行</div>
+                                <div class="ggg-guide-mark-desc">
+                                    放在CSS数值属性（如 top、width、height
+                                    等）的上一行
+                                </div>
                             </div>
 
                             <!-- 使用示例（可折叠） -->
-                            <div class="ggg-guide-wrapper ggg-guide-sub" style="margin-top:8px;">
-                                <div class="ggg-guide-toggle" data-guide="uicustom-example">
-                                    <i class="ggg-fa fa-solid fa-code"></i> 使用示例
-                                    <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            <div
+                                class="ggg-guide-wrapper ggg-guide-sub"
+                                style="margin-top: 8px"
+                            >
+                                <div
+                                    class="ggg-guide-toggle"
+                                    data-guide="uicustom-example"
+                                >
+                                    <i class="ggg-fa fa-solid fa-code"></i>
+                                    使用示例
+                                    <i
+                                        class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"
+                                    ></i>
                                 </div>
-                                <div class="ggg-guide-content" data-guide-content="uicustom-example">
-                                    <div class="ggg-guide-example-note">以下示例美化代码来自呱呱</div>
-<pre class="ggg-example-code"><span class="ggg-code-comment">/* 图片标记 - 标记在上一行 */</span>
+                                <div
+                                    class="ggg-guide-content"
+                                    data-guide-content="uicustom-example"
+                                >
+                                    <div class="ggg-guide-example-note">
+                                        以下示例美化代码来自呱呱
+                                    </div>
+                                    <pre
+                                        class="ggg-example-code"
+                                    ><span class="ggg-code-comment">/* 图片标记 - 标记在上一行 */</span>
 #chat .mes .ch_name::before {
     <span class="ggg-code-comment">/* ggg-img-char: 闪烁星星图 */</span>
     background-image: url('https://i.postimg.cc/JzNHCLGK/1-1-1.png');
@@ -264,57 +468,291 @@
                     <div id="ggg-panel-font"></div>
                 </div>
 
-                <!-- 自定义CSS/HTML 子面板 -->
+                <!-- 注入HTML 子面板（含 CSS+HTML 配对条目） -->
                 <div class="ggg-beautify-subpanel" id="ggg-bpanel-custom-css">
-
-                    <!-- ===== 自定义 CSS ===== -->
                     <div class="ggg-section-block">
                         <div class="ggg-section-title">
-                            <i class="ggg-fa fa-solid fa-paintbrush"></i> 自定义 CSS
+                            <i class="ggg-fa fa-solid fa-code"></i> 注入HTML
                         </div>
 
-                        <div class="ggg-guide-wrapper" style="margin-bottom:6px;">
-                            <div class="ggg-guide-toggle" data-guide="custom-css-usage">
-                                <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
-                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                        <!-- 使用说明 -->
+                        <div
+                            class="ggg-guide-wrapper"
+                            style="margin-bottom: 6px"
+                        >
+                            <div
+                                class="ggg-guide-toggle"
+                                data-guide="custom-css-usage"
+                            >
+                                <i class="ggg-fa fa-solid fa-circle-info"></i>
+                                使用说明
+                                <i
+                                    class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"
+                                ></i>
                             </div>
-                            <div class="ggg-guide-content" data-guide-content="custom-css-usage">
-                                <p>直接写 CSS，保存后立即注入酒馆页面。<b>绑定当前主题</b>，切换主题时自动切换对应的代码。</p>
-                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:4px 0 6px;">
-                                    <li>可用酒馆主题变量：<code>var(--SmartThemeBodyColor)</code>、<code>var(--SmartThemeQuoteColor)</code> 等</li>
-                                    <li>加入 <code>/* ggg-color: 名称 */</code> 标记 → 在「UI主题自定义」面板里可视化拾色修改</li>
-                                    <li>覆盖酒馆原样式加 <code>!important</code></li>
+                            <div
+                                class="ggg-guide-content"
+                                data-guide-content="custom-css-usage"
+                            >
+                                <p>
+                                    每个条目可同时包含 <b>CSS</b> 和
+                                    <b>HTML</b
+                                    >（任一可空），<b>绑定当前主题</b>，切换主题时自动切换。
+                                </p>
+                                <ul
+                                    style="
+                                        font-size: 0.88em;
+                                        line-height: 1.8;
+                                        padding-left: 18px;
+                                        margin: 4px 0 6px;
+                                    "
+                                >
+                                    <li>
+                                        <b>CSS</b>：注入为
+                                        <code>&lt;style&gt;</code> 标签到
+                                        <code>&lt;head&gt;</code
+                                        >，可用酒馆主题变量（<code
+                                            >var(--SmartThemeBodyColor)</code
+                                        >
+                                        等）
+                                    </li>
+                                    <li>
+                                        <b>HTML</b>：插入到目标 DOM 位置，<code
+                                            >&lt;script&gt;</code
+                                        >
+                                        会被正确执行
+                                    </li>
+                                    <li>
+                                        覆盖酒馆原样式加 <code>!important</code>
+                                    </li>
+                                    <li>
+                                        加入
+                                        <code>/* ggg-color: 名称 */</code> 标记
+                                        → 在「UI主题自定义」面板里可视化拾色修改
+                                    </li>
                                 </ul>
-                                <p style="opacity:0.6;font-size:0.85em;">刷新页面自动恢复。与酒馆主题文件无关，可用下方按钮单独导出/导入。</p>
+                                <p style="margin: 6px 0 2px">
+                                    <b>三个字段的含义：</b>
+                                </p>
+                                <ul
+                                    style="
+                                        font-size: 0.88em;
+                                        line-height: 1.8;
+                                        padding-left: 18px;
+                                        margin: 0 0 8px;
+                                    "
+                                >
+                                    <li>
+                                        <b>条目名称</b
+                                        >：起个你自己看得懂的名字，显示在下方列表里。
+                                    </li>
+                                    <li>
+                                        <b>目标选择器</b>：仅 HTML
+                                        用。留空则插到
+                                        <code>&lt;body&gt;</code> 末尾；或填
+                                        <code>#chat</code> 等 CSS 选择器。
+                                    </li>
+                                    <li>
+                                        <b>插入位置</b>：相对目标元素：内部末尾
+                                        / 内部开头 / 元素之后 / 元素之前。
+                                    </li>
+                                </ul>
+                                <p style="opacity: 0.6; font-size: 0.85em">
+                                    刷新页面自动恢复。可用下方按钮单独导出/导入。
+                                </p>
                             </div>
                         </div>
 
-                        <textarea id="ggg-custom-css-textarea" class="ggg-code-textarea" placeholder="/* 在此输入你的 CSS 代码 */
-:root {
-    /* ggg-color: 自定义颜色 */
-    --my-color: #7b7bff;
-}"></textarea>
-                        <div class="ggg-code-action-row">
-                            <button id="ggg-custom-css-save" class="menu_button menu_button_icon ggg-code-save-btn">
-                                <i class="ggg-fa fa-solid fa-floppy-disk"></i>
-                                <span>保存并应用</span>
-                            </button>
-                            <span id="ggg-custom-css-tip" class="ggg-code-tip"></span>
-                        </div>
-
-                        <!-- 导出/导入 -->
+                        <!-- 导出 / 导入 -->
                         <div class="ggg-custom-io-row">
-                            <span class="ggg-custom-io-label">当前主题数据：</span>
-                            <button id="ggg-custom-export" class="menu_button menu_button_icon ggg-custom-io-btn">
+                            <span class="ggg-custom-io-label"
+                                >当前主题数据：</span
+                            >
+                            <button
+                                id="ggg-custom-export"
+                                class="menu_button menu_button_icon ggg-custom-io-btn"
+                            >
                                 <i class="ggg-fa fa-solid fa-file-export"></i>
                                 <span>导出</span>
                             </button>
-                            <button id="ggg-custom-import" class="menu_button menu_button_icon ggg-custom-io-btn">
+                            <button
+                                id="ggg-custom-import"
+                                class="menu_button menu_button_icon ggg-custom-io-btn"
+                            >
                                 <i class="ggg-fa fa-solid fa-file-import"></i>
                                 <span>导入</span>
                             </button>
-                            <input type="file" id="ggg-custom-import-file" accept=".json" style="display:none;">
-                            <span id="ggg-export-tip" class="ggg-code-tip"></span>
+                            <input
+                                type="file"
+                                id="ggg-custom-import-file"
+                                accept=".json"
+                                style="display: none"
+                            />
+                            <span
+                                id="ggg-export-tip"
+                                class="ggg-code-tip"
+                            ></span>
+                        </div>
+
+                        <!-- 条目列表 -->
+                        <div
+                            id="ggg-custom-html-list"
+                            class="ggg-chtml-list"
+                        ></div>
+
+                        <!-- 编辑模式横幅 -->
+                        <div
+                            id="ggg-custom-edit-banner"
+                            class="ggg-custom-edit-banner"
+                            style="display: none"
+                        >
+                            <i class="ggg-fa fa-solid fa-pen-to-square"></i>
+                            正在编辑：<b id="ggg-custom-edit-name">—</b>
+                            <button
+                                id="ggg-custom-edit-exit"
+                                class="menu_button menu_button_icon ggg-btn-small"
+                                style="margin-left: auto"
+                            >
+                                <i class="ggg-fa fa-solid fa-xmark"></i>
+                                退出编辑
+                            </button>
+                        </div>
+
+                        <!-- CSS 输入区 -->
+                        <div class="ggg-custom-input-block">
+                            <div class="ggg-custom-input-label">
+                                <i class="ggg-fa fa-solid fa-paintbrush"></i>
+                                CSS
+                            </div>
+                            <textarea
+                                id="ggg-custom-css-textarea"
+                                class="ggg-code-textarea"
+                                placeholder="/* 在此输入 CSS 代码（可空） */
+:root {
+    /* ggg-color: 自定义颜色 */
+    --my-color: #7b7bff;
+}"
+                            ></textarea>
+                            <div class="ggg-code-action-row">
+                                <button
+                                    id="ggg-custom-css-save"
+                                    class="menu_button menu_button_icon ggg-code-save-btn"
+                                >
+                                    <i
+                                        class="ggg-fa fa-solid fa-floppy-disk"
+                                    ></i>
+                                    <span>新建条目</span>
+                                </button>
+                                <button
+                                    id="ggg-custom-css-cancel"
+                                    class="menu_button menu_button_icon ggg-btn-small"
+                                >
+                                    <i
+                                        class="ggg-fa fa-solid fa-rotate-left"
+                                    ></i>
+                                    <span>取消</span>
+                                </button>
+                                <span
+                                    id="ggg-custom-css-tip"
+                                    class="ggg-code-tip"
+                                ></span>
+                            </div>
+                        </div>
+
+                        <!-- HTML 输入区 -->
+                        <div class="ggg-custom-input-block">
+                            <div class="ggg-custom-input-label">
+                                <i class="ggg-fa fa-solid fa-code"></i> HTML /
+                                JS
+                            </div>
+                            <textarea
+                                id="ggg-custom-html-textarea"
+                                class="ggg-code-textarea"
+                                style="min-height: 110px"
+                                placeholder="<!-- HTML（可空） -->&#10;<div style=&quot;position:fixed;bottom:20px;right:20px;&quot;>装饰</div>&#10;&#10;<!-- 或 JS 脚本 -->&#10;<script>console.log('呱！');&lt;/script>"
+                            ></textarea>
+
+                            <div class="ggg-chtml-fields">
+                                <div class="ggg-chtml-field">
+                                    <span class="ggg-chtml-field-label"
+                                        >条目名称</span
+                                    >
+                                    <input
+                                        id="ggg-custom-html-label"
+                                        class="ggg-chtml-input"
+                                        type="text"
+                                        placeholder="给这条起个名字，可留空"
+                                    />
+                                </div>
+                                <div class="ggg-chtml-field">
+                                    <span class="ggg-chtml-field-label"
+                                        >目标选择器</span
+                                    >
+                                    <input
+                                        id="ggg-custom-html-target"
+                                        class="ggg-chtml-input"
+                                        type="text"
+                                        placeholder="留空 = body末尾（推荐）；或填 #chat / .mes_block 等"
+                                    />
+                                </div>
+                                <div class="ggg-chtml-field">
+                                    <span class="ggg-chtml-field-label"
+                                        >插入位置</span
+                                    >
+                                    <select
+                                        id="ggg-custom-html-pos"
+                                        class="ggg-chtml-pos-select"
+                                    >
+                                        <option value="beforeend">
+                                            目标内部末尾（默认）
+                                        </option>
+                                        <option value="afterbegin">
+                                            目标内部开头
+                                        </option>
+                                        <option value="afterend">
+                                            目标元素之后
+                                        </option>
+                                        <option value="beforebegin">
+                                            目标元素之前
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div
+                                class="ggg-code-action-row"
+                                style="margin-top: 10px"
+                            >
+                                <button
+                                    id="ggg-custom-html-test"
+                                    class="menu_button menu_button_icon ggg-btn-small"
+                                >
+                                    <i class="ggg-fa fa-solid fa-flask"></i>
+                                    <span>测试注入</span>
+                                </button>
+                                <button
+                                    id="ggg-custom-html-save"
+                                    class="menu_button menu_button_icon ggg-chtml-add-btn"
+                                >
+                                    <i
+                                        class="ggg-fa fa-solid fa-floppy-disk"
+                                    ></i>
+                                    <span>新建条目</span>
+                                </button>
+                                <button
+                                    id="ggg-custom-html-cancel"
+                                    class="menu_button menu_button_icon ggg-btn-small"
+                                >
+                                    <i
+                                        class="ggg-fa fa-solid fa-rotate-left"
+                                    ></i>
+                                    <span>取消</span>
+                                </button>
+                                <span
+                                    id="ggg-custom-html-tip"
+                                    class="ggg-code-tip"
+                                ></span>
+                            </div>
                         </div>
                     </div>
 
@@ -323,163 +761,206 @@
                     <!-- ===== AI 提示词 ===== -->
                     <div class="ggg-section-block">
                         <div class="ggg-section-title">
-                            <i class="ggg-fa fa-solid fa-robot"></i> AI 创作提示词
+                            <i class="ggg-fa fa-solid fa-robot"></i> AI
+                            创作提示词
                         </div>
 
                         <div class="ggg-guide-wrapper">
-                            <div class="ggg-guide-toggle" data-guide="ai-prompt">
-                                <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i> 展开 / 复制 AI 提示词
-                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            <div
+                                class="ggg-guide-toggle"
+                                data-guide="ai-prompt"
+                            >
+                                <i
+                                    class="ggg-fa fa-solid fa-wand-magic-sparkles"
+                                ></i>
+                                展开 / 复制 AI 提示词
+                                <i
+                                    class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"
+                                ></i>
                             </div>
-                            <div class="ggg-guide-content" data-guide-content="ai-prompt">
-                                <p style="font-size:0.84em;opacity:0.7;margin:0 0 8px;">把这段文字直接发给 AI，它就能按照本插件的规范帮你写代码。</p>
+                            <div
+                                class="ggg-guide-content"
+                                data-guide-content="ai-prompt"
+                            >
+                                <p
+                                    style="
+                                        font-size: 0.84em;
+                                        opacity: 0.7;
+                                        margin: 0 0 8px;
+                                    "
+                                >
+                                    把这段文字直接发给
+                                    AI，它就能按照本插件的规范帮你写代码。
+                                </p>
                                 <div class="ggg-ai-prompt-box">
                                     <div class="ggg-ai-prompt-toolbar">
-                                        <span class="ggg-ai-prompt-lang">Prompt</span>
-                                        <button class="ggg-ai-prompt-copy menu_button menu_button_icon" id="ggg-ai-prompt-copy">
-                                            <i class="ggg-fa fa-solid fa-copy"></i>
+                                        <span class="ggg-ai-prompt-lang"
+                                            >Prompt</span
+                                        >
+                                        <button
+                                            class="ggg-ai-prompt-copy menu_button menu_button_icon"
+                                            id="ggg-ai-prompt-copy"
+                                        >
+                                            <i
+                                                class="ggg-fa fa-solid fa-copy"
+                                            ></i>
                                             <span>复制</span>
                                         </button>
                                     </div>
-                                    <pre id="ggg-ai-prompt-text" class="ggg-ai-prompt-pre">我正在使用 SillyTavern 扩展「呱呱小工具 (GuaGua Gadgets)」，请帮我编写自定义 CSS 或 HTML 注入代码。
+                                    <pre
+                                        id="ggg-ai-prompt-text"
+                                        class="ggg-ai-prompt-pre"
+                                    >
+我正在使用 SillyTavern 扩展「呱呱小工具 (GuaGua Gadgets)」，请帮我编写自定义 CSS 或 HTML 注入代码。
 
 ## 代码注入方式
-- 「自定义CSS」：直接注入酒馆页面的 &lt;style&gt; 标签，写标准 CSS 即可
-- 「HTML注入」：将任意 HTML / JS 插入页面 DOM，&lt;script&gt; 标签会被正确执行
-
-## ggg 特殊标记（写在 CSS 中，让插件面板可视化控制这些值）
-
-★ ggg-color — 颜色拾色器
-    .my-el {
-        /* ggg-color: 名称 */
-        background: #7b7bff;
-    }
-    /* 或写在同一行属性值前 */
-    .my-el { color: /* ggg-color: 名称 */ #fff; }
-
-★ ggg-img   — 图片路径替换
-    .avatar { /* ggg-img: 头像 */ background: url('/path/to/img.png'); }
-
-★ ggg-text  — 文字内容替换
-    .label::before { /* ggg-text: 标签文字 */ content: "示例"; }
-
-★ ggg-dim   — 数值（px / em / %）调整
-    .box { /* ggg-dim: 圆角 */ border-radius: 12px; }
-
-## 常用酒馆主题 CSS 变量（自动跟随当前主题）
-    --SmartThemeBodyColor        主文本颜色
-    --SmartThemeQuoteColor       引用/强调色（常用于高亮、按钮）
-    --SmartThemeBorderColor      边框颜色
-    --SmartThemeBlurTintColor    UI 半透明背景
-    --SmartThemeChatTintColor    聊天区背景
-    --SmartThemeShadowColor      阴影色
+- 「CSS」：直接注入酒馆页面的 &lt;style&gt; 标签，写标准 CSS 即可
+- 「HTML」：将任意 HTML / JS 插入页面 DOM，&lt;script&gt; 标签会被正确执行
+- 同一条目可同时包含 CSS 和 HTML（任一可空），共享条目名称
 
 ## HTML 注入注意事项
 - 覆盖酒馆原有样式需加 !important
 - 悬浮元素用 position:fixed（不填目标选择器时插到 &lt;body&gt; 末尾）
-- 颜色优先用 CSS 变量或 ggg-color 标记，避免硬编码
-- JS 脚本直接写 &lt;script&gt;...&lt;/script&gt; 放入注入框，插件会自动执行
+- JS 脚本直接写 &lt;script&gt;...&lt;/script&gt; 放入 HTML 框，插件会自动执行
 
 ## 请帮我实现：
-[在这里描述你想要的效果]</pre>
+[在这里描述你想要的效果]</pre
+                                    >
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <div class="ggg-section-divider"></div>
-
-                    <!-- ===== 自定义 HTML / JS 注入 ===== -->
-                    <div class="ggg-section-block">
-                        <div class="ggg-section-title">
-                            <i class="ggg-fa fa-solid fa-code"></i> 自定义 HTML / JS 注入
-                        </div>
-
-                        <div class="ggg-guide-wrapper" style="margin-bottom:6px;">
-                            <div class="ggg-guide-toggle" data-guide="custom-html-usage">
-                                <i class="ggg-fa fa-solid fa-circle-info"></i> 使用说明
-                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
-                            </div>
-                            <div class="ggg-guide-content" data-guide-content="custom-html-usage">
-                                <p>将任意 HTML 代码（包括 <code>&lt;script&gt;</code> 脚本）插入到酒馆页面 DOM 中，绑定当前主题。</p>
-
-                                <p style="margin:6px 0 2px;"><b>三个字段的含义：</b></p>
-                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:0 0 8px;">
-                                    <li><b>片段名称</b>：只是给这条记录起个你自己看得懂的名字，显示在下方列表里，不影响任何功能。</li>
-                                    <li><b>目标选择器</b>：留空则插到 <code>&lt;body&gt;</code> 末尾（最常用）；也可以填酒馆某个元素的 CSS 选择器（如 <code>#chat</code>、<code>.mes_block</code>）把代码插到指定位置。</li>
-                                    <li><b>插入位置</b>：相对目标元素，可选「内部末尾 / 内部开头 / 元素之后 / 元素之前」。不填目标选择器时此项无效。</li>
-                                </ul>
-
-                                <p style="margin:0 0 2px;"><b>常见用途：</b></p>
-                                <ul style="font-size:0.88em;line-height:1.8;padding-left:18px;margin:0 0 6px;">
-                                    <li>悬浮装饰元素 → 不填选择器，代码里用 <code>position:fixed</code> 定位</li>
-                                    <li>运行 JS 脚本 → 把 <code>&lt;script&gt;...&lt;/script&gt;</code> 直接粘进来，插件会正确执行它</li>
-                                    <li>插入到聊天区前 → 目标选择器填 <code>#chat</code>，位置选「内部开头」</li>
-                                </ul>
-                                <p style="opacity:0.6;font-size:0.85em;">刷新页面自动重新注入，主题切换时随之切换。</p>
-                            </div>
-                        </div>
-
-                        <textarea id="ggg-custom-html-textarea" class="ggg-code-textarea" style="min-height:110px;"
-                            placeholder="<!-- 普通 HTML -->&#10;<div style=&quot;position:fixed;bottom:20px;right:20px;&quot;>装饰</div>&#10;&#10;<!-- 或者 JS 脚本 -->&#10;<script>console.log('呱！');&lt;/script>"></textarea>
-
-                        <div class="ggg-chtml-fields">
-                            <div class="ggg-chtml-field">
-                                <span class="ggg-chtml-field-label">片段名称</span>
-                                <input id="ggg-custom-html-label" class="ggg-chtml-input" type="text"
-                                    placeholder="随便填，只是备注，可留空">
-                            </div>
-                            <div class="ggg-chtml-field">
-                                <span class="ggg-chtml-field-label">目标选择器</span>
-                                <input id="ggg-custom-html-target" class="ggg-chtml-input" type="text"
-                                    placeholder="留空 = body末尾（推荐）；或填 #chat / .mes_block 等">
-                            </div>
-                            <div class="ggg-chtml-field">
-                                <span class="ggg-chtml-field-label">插入位置</span>
-                                <select id="ggg-custom-html-pos" class="ggg-chtml-pos-select">
-                                    <option value="beforeend">目标内部末尾（默认）</option>
-                                    <option value="afterbegin">目标内部开头</option>
-                                    <option value="afterend">目标元素之后</option>
-                                    <option value="beforebegin">目标元素之前</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="ggg-code-action-row" style="margin-top:12px;">
-                            <button id="ggg-custom-html-add" class="menu_button menu_button_icon ggg-chtml-add-btn">
-                                <i class="ggg-fa fa-solid fa-arrow-up-from-bracket"></i>
-                                <span>注入到页面</span>
-                            </button>
-                            <span id="ggg-custom-html-tip" class="ggg-code-tip"></span>
-                        </div>
-
-                        <div id="ggg-custom-html-list" class="ggg-chtml-list"></div>
-                    </div>
-
                 </div>
             </div>
 
             <!-- ========== 工具面板 ========== -->
             <div id="ggg-panel-tools" class="ggg-panel">
-
-
                 <div class="ggg-section-block">
-                    <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-camera"></i> 截图</div>
-                    <div class="ggg-empty-state" style="padding:12px;"><div>截图功能 - 开发中</div></div>
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-book-open"></i> 世界书面板
+                    </div>
+                    <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
+                        把酒馆的世界书选择器替换为底部升起的可视化面板，便于在移动端选择多本世界书。
+                    </div>
+                    <label class="ggg-toggle-label">
+                        <input type="checkbox" id="ggg-wi-toggle-enabled">
+                        <i class="ggg-fa fa-solid fa-power-off ggg-toggle-icon"></i>
+                        <span>启用世界书底部面板</span>
+                    </label>
+                    <label class="ggg-toggle-label" style="margin-top:4px;">
+                        <input type="checkbox" id="ggg-wi-toggle-pc">
+                        <i class="ggg-fa fa-solid fa-desktop ggg-toggle-icon"></i>
+                        <span>PC 端也启用（用于测试）</span>
+                    </label>
+                    <div style="font-size:0.78em;opacity:0.5;margin-top:6px;">
+                        默认仅移动端（窗口宽度&lt;1000px）启用。开启 PC 端后桌面版也会替换。
+                    </div>
                 </div>
                 <div class="ggg-section-divider"></div>
                 <div class="ggg-section-block">
-                    <div class="ggg-section-title"><i class="ggg-fa fa-solid fa-note-sticky"></i> 备忘录</div>
-                    <div class="ggg-empty-state" style="padding:12px;"><div>备忘录功能 - 开发中</div></div>
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-camera"></i> 截图
+                    </div>
+                    <div class="ggg-empty-state" style="padding: 12px">
+                        <div>截图功能 - 开发中</div>
+                    </div>
+                </div>
+                <div class="ggg-section-divider"></div>
+                <div class="ggg-section-block">
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-note-sticky"></i> 备忘录
+                    </div>
+                    <div class="ggg-empty-state" style="padding: 12px">
+                        <div>备忘录功能 - 开发中</div>
+                    </div>
                 </div>
             </div>
 
             <!-- 占位面板 -->
             <div id="ggg-panel-achievement" class="ggg-panel">
-                <div class="ggg-empty-state"><div class="ggg-empty-icon"><i class="ggg-fa fa-solid fa-trophy"></i></div><div>成就系统 - 开发中</div></div>
+                <div class="ggg-section-block">
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-trophy"></i> 成就
+                    </div>
+                    <div class="ggg-empty-state" style="padding: 12px">
+                        <div>成就系统 - 开发中</div>
+                    </div>
+                </div>
+                <div class="ggg-section-divider"></div>
+                <div class="ggg-section-block">
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-masks-theater"></i>
+                        终幕演出
+                    </div>
+                    <div class="ggg-empty-state" style="padding: 12px">
+                        <div>终幕演出 - 开发中</div>
+                    </div>
+                </div>
+                <div class="ggg-section-divider"></div>
+                <div class="ggg-section-block">
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-comment-dots"></i> 段评
+                    </div>
+                    <div class="ggg-empty-state" style="padding: 12px">
+                        <div>段评 - 开发中</div>
+                    </div>
+                </div>
             </div>
             <div id="ggg-panel-phone" class="ggg-panel">
-                <div class="ggg-empty-state"><div class="ggg-empty-icon"><i class="ggg-fa fa-solid fa-mobile-screen"></i></div><div>手机界面 - 开发中</div></div>
+                <div class="ggg-section-block">
+                    <div class="ggg-section-title">
+                        <i class="ggg-fa fa-solid fa-mobile-screen"></i> 呱呱手机
+                    </div>
+                    <div class="ggg-section-desc">
+                        在酒馆内嵌入一台"手机"，包含 PP 聊天、动态、设置等多种 App。<br>
+                        启用后顶部中央会出现 <b>灵动岛</b>：单击切换酒馆顶栏显隐，<b>双击进入/退出手机</b>。
+                    </div>
+
+                    <div class="ggg-toggle-row">
+                        <label class="checkbox_label">
+                            <input type="checkbox" id="ggg-phone-enable" />
+                            <span>启用手机模块</span>
+                        </label>
+                    </div>
+
+                    <div class="ggg-toggle-row">
+                        <label class="checkbox_label">
+                            <input type="checkbox" id="ggg-phone-hide-mobile-status" />
+                            <span>顶掉手机系统状态栏（沉浸式）</span>
+                        </label>
+                    </div>
+
+                    <div class="ggg-toggle-row" style="display:flex;align-items:center;gap:10px;">
+                        <span style="min-width: 80px;">入口形态</span>
+                        <select id="ggg-phone-entry-mode" class="text_pole" style="flex:1;max-width:240px;">
+                            <option value="island">灵动岛（顶部胶囊，默认）</option>
+                            <option value="pc-floater">PC 悬浮窗（贴 sheld 右侧，可拖拽）</option>
+                            <option value="mobile-ball">移动悬浮球（贴边吸附）</option>
+                        </select>
+                    </div>
+
+                    <div class="ggg-toggle-row">
+                        <label class="checkbox_label">
+                            <input type="checkbox" id="ggg-phone-always-fullscreen" />
+                            <span>进入手机时调浏览器全屏（撑掉浏览器顶/底栏）</span>
+                        </label>
+                    </div>
+
+                    <div class="ggg-toggle-row" style="display:flex;align-items:center;gap:10px;">
+                        <span style="min-width: 80px;">主题</span>
+                        <select id="ggg-phone-theme" class="text_pole" style="flex:1;max-width:240px;">
+                            <option value="dark">深色（默认）</option>
+                            <option value="light">浅色</option>
+                        </select>
+                    </div>
+
+                    <div class="ggg-empty-state" style="padding: 12px; margin-top: 12px;">
+                        <div style="font-size: 12px; opacity: 0.7;">
+                            三种入口共用同一套行为：<b>单击切换酒馆顶栏</b>，<b>双击进入/退出手机</b>。<br>
+                            后续按 <code>PHONE_PLAN.md</code> 逐阶段填充。
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 图库面板 -->
@@ -487,8 +968,13 @@
                 <!-- 由 gallery.js 填充 -->
             </div>
 
-
-            <input type="file" id="ggg-file-input" accept="image/*" multiple style="display:none;">
+            <input
+                type="file"
+                id="ggg-file-input"
+                accept="image/*"
+                multiple
+                style="display: none"
+            />
         </div>
     </div>
 </div>

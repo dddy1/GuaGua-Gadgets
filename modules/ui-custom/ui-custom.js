@@ -466,7 +466,14 @@ function scanCSS() {
     const ctx = SillyTavern.getContext();
     // 同时扫描酒馆自带 custom_css 和呱呱插件的自定义CSS（支持所有 ggg 标记）
     const powerCSS  = ctx.powerUserSettings?.custom_css || '';
-    const gggCSS    = getThemeData().customCSS || '';
+    // 兼容旧 customCSS 字符串 + 新 customHTML[].css 数组
+    const themeData = getThemeData();
+    const oldCSS    = themeData.customCSS || '';
+    const itemsCSS  = (themeData.customHTML || [])
+        .filter(it => it.css?.trim())
+        .map(it => `/* --- ${it.label || it.id} --- */\n${it.css}`)
+        .join('\n');
+    const gggCSS    = [oldCSS, itemsCSS].filter(Boolean).join('\n');
     const cssText   = powerCSS + (gggCSS ? '\n/* === ggg-custom-css === */\n' + gggCSS : '');
 
     parsedImages = []; parsedTexts = []; parsedColors = []; parsedDims = [];

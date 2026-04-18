@@ -15,19 +15,63 @@
     min-height: 26px;
 }
 .ggg-font-active-item {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     padding: 5px 8px; border-radius: 7px;
     border: 1px solid var(--SmartThemeBorderColor, #555);
-    background: rgba(255,255,255,0.03);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 5%, transparent);
+    position: relative;
 }
 .ggg-font-active-name {
     font-size: 1em; flex: 0 0 auto; min-width: 60px; max-width: 130px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     color: var(--SmartThemeBodyColor, #ddd);
 }
-.ggg-font-active-scopes {
-    display: flex; flex-wrap: wrap; gap: 4px; flex: 1;
+/* 已选 chip 区：横向滚动显示 */
+.ggg-font-active-scopes-active {
+    display: flex; flex-wrap: nowrap; gap: 4px; flex: 1;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: thin;
+    min-width: 0;
 }
+.ggg-font-active-scopes-active::-webkit-scrollbar { height: 3px; }
+.ggg-font-active-scopes-active::-webkit-scrollbar-thumb {
+    background: var(--SmartThemeQuoteColor, #888); border-radius: 2px;
+}
+.ggg-font-active-empty { font-size: 0.75em; opacity: 0.45; }
+/* + 按钮：展开未选 chip */
+.ggg-font-active-add, .ggg-font-active-disable {
+    flex: 0 0 auto;
+    width: 22px; height: 22px; padding: 0;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #ccc);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.75em;
+    opacity: 0.6;
+    transition: all 0.15s;
+}
+.ggg-font-active-add:hover, .ggg-font-active-disable:hover { opacity: 1; }
+.ggg-font-active-add.open {
+    background: var(--SmartThemeQuoteColor, #888); color: #fff; opacity: 1;
+}
+.ggg-font-active-disable:hover {
+    color: #ff6b6b; border-color: #ff6b6b;
+}
+/* 未选 chip 弹层：展开时换行占据实际高度，不再绝对定位以免被后续按钮遮挡 */
+.ggg-font-active-scopes-more {
+    flex-basis: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    border: 1px dashed var(--SmartThemeBorderColor, #555);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent);
+    flex-wrap: wrap; gap: 4px;
+}
+/* 展开时强制使用 flex 布局 */
+.ggg-font-active-scopes-more[style*="display: flex"],
+.ggg-font-active-scopes-more[style*="display:flex"] { display: flex !important; }
 
 /* 工具栏 */
 .ggg-font-toolbar {
@@ -53,7 +97,7 @@
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 6px; padding: 8px 10px;
     margin-bottom: 8px;
-    background: rgba(0,0,0,0.1);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 10%, transparent);
 }
 .ggg-font-import-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
 .ggg-font-itab {
@@ -84,7 +128,7 @@
     color: var(--SmartThemeBodyColor, #ccc); background: transparent;
     transition: all 0.15s; user-select: none;
 }
-.ggg-font-type-chip:hover { background: rgba(255,255,255,0.08); }
+.ggg-font-type-chip:hover { background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent); }
 .ggg-font-type-chip.active {
     background: var(--SmartThemeQuoteColor, rgba(170,170,170,0.25));
     border-color: var(--SmartThemeQuoteColor, #aaa);
@@ -105,7 +149,7 @@
     color: var(--SmartThemeBodyColor, #ccc); background: transparent;
     transition: all 0.15s; user-select: none; white-space: nowrap; flex-shrink: 0;
 }
-.ggg-font-tag-chip:hover { background: rgba(255,255,255,0.08); }
+.ggg-font-tag-chip:hover { background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent); }
 .ggg-font-tag-chip.active {
     background: var(--SmartThemeQuoteColor, rgba(170,170,170,0.25));
     border-color: var(--SmartThemeQuoteColor, #aaa);
@@ -136,7 +180,7 @@
     display: flex; align-items: center; gap: 7px;
     padding: 6px 6px;
 }
-.ggg-fitem-main:hover { background: rgba(255,255,255,0.03); border-radius: 6px; }
+.ggg-fitem-main:hover { background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 3%, transparent); border-radius: 6px; }
 
 /* 编辑模式复选框 */
 .ggg-fitem-checkbox {
@@ -176,7 +220,7 @@
 .ggg-fitem-scopes { display: flex; gap: 3px; flex-shrink: 0; }
 .ggg-fitem-scope {
     font-size: 0.6em; padding: 1px 5px; border-radius: 3px;
-    background: rgba(255,255,255,0.07); color: var(--SmartThemeBodyColor, #aaa);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 7%, transparent); color: var(--SmartThemeBodyColor, #aaa);
     white-space: nowrap;
 }
 
@@ -187,7 +231,7 @@
     padding: 2px 4px; border-radius: 3px;
     transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
-.ggg-text-btn:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+.ggg-text-btn:hover { opacity: 1; background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent); }
 .ggg-fitem-expand-btn.open { opacity: 0.9; }
 .ggg-fitem-delete-btn:hover { color: #ff6b6b !important; }
 .ggg-fitem-update-btn { color: #4fc3f7; }
@@ -196,7 +240,7 @@
 .ggg-fitem-settings {
     padding: 8px 10px 10px;
     border-top: 1px solid rgba(255,255,255,0.05);
-    background: rgba(0,0,0,0.08);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 5%, transparent);
     border-radius: 0 0 6px 6px;
 }
 .ggg-fsetting-row {
@@ -275,7 +319,7 @@
     color: var(--SmartThemeBodyColor, #ccc); background: transparent;
     transition: all 0.15s; user-select: none;
 }
-.ggg-font-page-btn:hover { background: rgba(255,255,255,0.08); }
+.ggg-font-page-btn:hover { background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent); }
 .ggg-font-page-btn.active {
     background: var(--SmartThemeQuoteColor, rgba(170,170,170,0.25));
     border-color: var(--SmartThemeQuoteColor, #aaa);
@@ -298,7 +342,7 @@
 .ggg-gselector-code {
     flex: 1; font-size: 0.85em; font-family: monospace;
     padding: 1px 6px; border-radius: 3px;
-    background: rgba(255,255,255,0.06);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 6%, transparent);
     color: var(--SmartThemeBodyColor, #ccc);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -330,7 +374,7 @@
 .ggg-confirm-dialog-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 60%, transparent);
     z-index: 99999;
     display: flex;
     align-items: center;
@@ -373,7 +417,7 @@
 }
 .ggg-confirm-btn:active { opacity: 0.75; }
 .ggg-confirm-cancel {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 10%, transparent);
     color: var(--SmartThemeBodyColor, #ccc);
 }
 .ggg-confirm-ok {

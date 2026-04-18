@@ -1,0 +1,164 @@
+/* ============================================================
+ * 世界书底部面板样式
+ * ========================================================== */
+
+/* 隐藏原 #world_info 多选框 + 它的 select2 包装器 */
+#world_info.ggg-wi-hidden,
+.select2-container.ggg-wi-hidden {
+    display: none !important;
+}
+
+/* 触发按钮 —— 沿用酒馆原生 select / .text_pole 样式，仅微调几项 */
+select.ggg-wi-trigger {
+    width: 100%;
+    margin: 4px 0;
+    cursor: pointer;
+}
+
+/* 全屏遮罩 —— 用 100vw/100vh 而非 inset:0，
+   规避祖先 transform 导致 fixed 定位失效的情况 */
+.ggg-wi-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99998;
+    background: color-mix(in srgb, #000 40%, transparent);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.22s;
+    pointer-events: auto;
+}
+.ggg-wi-overlay.open { opacity: 1; }
+
+/* 底部升起面板 —— 关键定位由 JS 内联 !important 设置（见 .js 中说明）
+   这里只放外观 */
+.ggg-wi-sheet {
+    background: var(--SmartThemeBlurTintColor, color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 12%, #1a1a1a));
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    transition: transform 0.22s ease-out;
+    color: var(--SmartThemeBodyColor, #eee);
+}
+
+/* 顶部小握把 */
+.ggg-wi-sheet-handle {
+    width: 40px; height: 4px;
+    margin: 8px auto 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 25%, transparent);
+    flex-shrink: 0;
+}
+
+/* Header */
+.ggg-wi-sheet-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px 6px;
+    flex-shrink: 0;
+}
+.ggg-wi-sheet-title {
+    font-size: 1em; font-weight: bold;
+    flex-shrink: 0;
+}
+.ggg-wi-search {
+    flex: 1; min-width: 0;
+    padding: 5px 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid var(--SmartThemeBorderColor, #555) !important;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 5%, transparent) !important;
+    color: var(--SmartThemeBodyColor, #ddd) !important;
+    font-size: 0.85em !important;
+    outline: none !important;
+}
+.ggg-wi-close {
+    flex-shrink: 0;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--SmartThemeBodyColor, #ccc) !important;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 4px 8px !important;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.15s, background 0.15s;
+}
+.ggg-wi-close:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 15%, transparent) !important;
+}
+
+/* 工具栏 */
+.ggg-wi-sheet-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent);
+    flex-shrink: 0;
+}
+.ggg-wi-btn-clear {
+    padding: 4px 10px !important;
+    border-radius: 5px !important;
+    border: 1px solid var(--SmartThemeBorderColor, #555) !important;
+    background: transparent !important;
+    color: var(--SmartThemeBodyColor, #ccc) !important;
+    font-size: 0.78em !important;
+    cursor: pointer;
+    box-shadow: none !important;
+}
+.ggg-wi-btn-clear:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 12%, transparent) !important;
+}
+.ggg-wi-count {
+    margin-left: auto;
+    font-size: 0.78em; opacity: 0.7;
+}
+
+/* 选项列表（可滚动） */
+.ggg-wi-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 8px 16px;
+}
+.ggg-wi-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    margin: 3px 0;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    user-select: none;
+}
+.ggg-wi-item:hover {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 8%, transparent);
+}
+.ggg-wi-item.selected {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 18%, transparent);
+    border-color: var(--SmartThemeQuoteColor, #aaa);
+}
+.ggg-wi-item input[type="checkbox"] {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: var(--SmartThemeQuoteColor, #aaa);
+}
+.ggg-wi-item-name {
+    flex: 1; min-width: 0;
+    font-size: 0.9em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ggg-wi-empty {
+    padding: 30px 12px;
+    text-align: center;
+    font-size: 0.85em;
+    opacity: 0.5;
+}
+
+/* 移动端微调 */
+@media (max-width: 600px) {
+    .ggg-wi-sheet { max-height: 80vh; }
+    .ggg-wi-search { font-size: 0.9em !important; }
+    .ggg-wi-item-name { font-size: 0.95em; }
+}
