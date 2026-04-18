@@ -1,15 +1,6 @@
 /**
- * GuaGua Gadgets - 主入口（不含手机模块的备份版本）
- *
- * 用途：手机模块还在开发中、暂时不想发布手机功能时，
- *      把本文件改名为 index.js 覆盖原文件即可发布"无手机"版插件。
- *
- * 与正式 index.js 的差异：
- *   - 不 import './modules/phone/phone.js'
- *   - 不 loadModuleCSS('modules/phone/phone.css')
- *   - 不 initPhone()
- *   - 不在 saveAllSettings 中持久化 phone 字段
- *   - tab 顺序里去掉 'phone'
+ * GuaGua Gadgets - 主入口
+ * 负责：加载主面板、初始化设置、管理标签页、加载各功能模块
  */
 import { eventSource, event_types } from '../../../../script.js';
 import { extension_settings, renderExtensionTemplateAsync } from '../../../extensions.js';
@@ -19,6 +10,8 @@ import { initGallery, updateAvatarShape } from './modules/gallery/gallery.js';
 import { initFont } from './modules/font/font.js';
 import { initCustomCSS, injectCustomCSS, injectAllCustomHTML, onThemeChangedCustomCSS } from './modules/custom-css/custom-css.js';
 import { initWorldInfoSheet } from './modules/world-info-sheet/world-info-sheet.js';
+import { initSelectSheet } from './modules/select-sheet/select-sheet.js';
+import { initPhone } from './modules/phone/phone.js';
 
 // ============================================================
 // 常量 & 导出
@@ -27,8 +20,7 @@ export const EXTENSION_NAME = 'third-party/GuaGua-Gadgets';
 export const SETTINGS_KEY = 'ggg';
 
 const FEATURE_TAB_MAP = { beautify: 'beautifyEnabled', tools: 'toolsEnabled' };
-// 没有 phone tab
-const TAB_ORIGINAL_ORDER = ['main', 'beautify', 'tools', 'achievement', 'gallery'];
+const TAB_ORIGINAL_ORDER = ['main', 'beautify', 'tools', 'achievement', 'phone', 'gallery'];
 
 export let settings = {
     enabled: true,
@@ -69,8 +61,10 @@ export function saveAllSettings() {
         themeOverrides: settings.themeOverrides,
         fonts: settings.fonts,
         wiSheet: settings.wiSheet,
-        // 注意：保留 phone 字段透明读写，避免覆盖用户已有手机数据
         phone: settings.phone,
+        // select-sheet 模块持久化字段（之前漏写，导致每次保存把收藏抹掉）
+        selectSheet: settings.selectSheet,
+        selectFavs: settings.selectFavs,
         _migrated: true,
     };
     SillyTavern.getContext().saveSettingsDebounced();
@@ -91,7 +85,8 @@ eventSource.on(event_types.APP_READY, async () => {
         loadModuleCSS('modules/font/font.css');
         loadModuleCSS('modules/custom-css/custom-css.css');
         loadModuleCSS('modules/world-info-sheet/world-info-sheet.css');
-        // 不加载 phone.css
+        loadModuleCSS('modules/select-sheet/select-sheet.css');
+        loadModuleCSS('modules/phone/phone.css');
 
         loadSettings();
         initTabs();
@@ -107,29 +102,26 @@ eventSource.on(event_types.APP_READY, async () => {
         injectCustomCSS();
         injectAllCustomHTML();
         initWorldInfoSheet();
-        // 不调用 initPhone()
+        initSelectSheet();
+        initPhone();
 
         updateTabStates();
         updateUICustomVisibility();
 
+        // 所有模块初始化完成后，触发一次 ggg标记 重新扫描
+        // 确保「自定义CSS」中的 ggg-color 等标记能被「UI主题自定义」面板检测到
         setTimeout(() => document.dispatchEvent(new CustomEvent('ggg-custom-css-saved')), 200);
 
         eventSource.on(event_types.SETTINGS_UPDATED, () => {
             updateAvatarShape();
             const newTheme = getThemeName();
             if (newTheme !== currentThemeName) {
-                onThemeChangedUICustom(newTheme);
+                onThemeChangedUICustom(newTheme); // 内部会调用 setCurrentThemeName
                 onThemeChangedCustomCSS();
             }
         });
 
-        // 隐藏设置页里"手机"那个 tab（如果 settings.html 里仍写着）
-        const phoneTab = document.querySelector('#ggg-tabs .ggg-tab[data-tab="phone"]');
-        if (phoneTab) phoneTab.style.display = 'none';
-        const phonePanel = document.getElementById('ggg-panel-phone');
-        if (phonePanel) phonePanel.style.display = 'none';
-
-        console.log('[ggg] 呱呱小工具已加载（无手机模块版）');
+        console.log('[ggg] 呱呱小工具已加载');
     } catch (err) {
         console.error('[ggg] 加载失败:', err);
     }
@@ -163,8 +155,10 @@ function loadSettings() {
     settings.themeOverrides = saved.themeOverrides || {};
     settings.fonts = saved.fonts || { enabled: true, list: [] };
     settings.wiSheet = saved.wiSheet || { enabled: false, pcMode: false };
-    // 保留旧的 phone 数据但不主动初始化
-    if (saved.phone) settings.phone = saved.phone;
+    settings.phone = saved.phone || { enabled: false, hideMobileStatusBar: false };
+    // select-sheet 持久化字段恢复（之前漏读，导致升级后收藏丢失）
+    settings.selectSheet = saved.selectSheet || { mobileEnabled: true, pcEnabled: true };
+    settings.selectFavs  = saved.selectFavs  || {};
 
     if (saved.overrides && Object.keys(saved.overrides).length > 0 && !saved._migrated) {
         const theme = getThemeName();
@@ -205,7 +199,6 @@ export function updateTabStates() {
     tabContainer.querySelectorAll('.ggg-tab').forEach(tab => {
         const tabName = tab.dataset.tab;
         if (tabName === 'main') return;
-        if (tabName === 'phone') { tab.classList.add('disabled'); return; }
         if (!settings.enabled) {
             tab.classList.add('disabled');
         } else {
@@ -215,8 +208,7 @@ export function updateTabStates() {
         }
     });
 
-    const allTabs = [...tabContainer.querySelectorAll('.ggg-tab')]
-        .filter(t => t.dataset.tab !== 'phone');
+    const allTabs = [...tabContainer.querySelectorAll('.ggg-tab')];
     const enabled = allTabs.filter(t => !t.classList.contains('disabled'))
         .sort((a, b) => TAB_ORIGINAL_ORDER.indexOf(a.dataset.tab) - TAB_ORIGINAL_ORDER.indexOf(b.dataset.tab));
     const disabled = allTabs.filter(t => t.classList.contains('disabled'))
@@ -253,7 +245,7 @@ function initTabs() {
 }
 
 // ============================================================
-// 美化面板导航栏
+// 美化面板导航栏（Phase 4）
 // ============================================================
 function initBeautifyNav() {
     document.querySelectorAll('.ggg-beautify-nav-item').forEach(item => {

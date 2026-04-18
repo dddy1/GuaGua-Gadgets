@@ -4,6 +4,10 @@
  * - 同步原 <select multiple> 的选中状态，触发原生 change 事件，确保酒馆功能正常
  */
 import { getSettings, saveAllSettings } from '../../index.js';
+// 与 select-sheet 共享收藏存储（key 用 'world_info'）
+import { getFavs, isFav, toggleFav, sortOptionsByFavs } from '../select-sheet/select-sheet.js';
+
+const FAV_KEY = 'world_info';
 
 let inited = false;
 let observer = null;
@@ -233,9 +237,13 @@ function openSheet(sel) {
 
     // 事件
     sheet.querySelector('.ggg-wi-close').addEventListener('click', closeSheet);
-    // overlay 点击关闭 —— 延迟 250ms 绑定，避开 touchstart→合成 click 的事件链
-    // 否则在移动端打开瞬间就会被合成点击关掉
-    setTimeout(() => overlay.addEventListener('click', closeSheet), 250);
+    // overlay 关闭：mousedown 即时关 + 关后吞掉所有 pointer 事件，
+    // 避免合成 click 穿透到下层 select / select2，触发酒馆原生下拉
+    setTimeout(() => {
+        const onDown = (e) => { e.preventDefault(); e.stopImmediatePropagation(); closeSheet(); };
+        overlay.addEventListener('mousedown',  onDown, true);
+        overlay.addEventListener('touchstart', onDown, { capture: true, passive: false });
+    }, 250);
 
     sheet.querySelector('.ggg-wi-btn-clear').addEventListener('click', () => {
         Array.from(sel.options).forEach(o => o.selected = false);
@@ -280,32 +288,61 @@ function openSheet(sel) {
 }
 
 function renderOptions(sel, body, sheet) {
-    const items = Array.from(sel.options).map((opt, idx) => {
+    // 收藏置顶；按 select.options 的原始 index 记下来，便于点击时定位回原 select
+    const optsWithIdx = Array.from(sel.options).map((o, idx) => ({ opt: o, idx }));
+    const sorted = sortOptionsByFavs(
+        optsWithIdx.map(x => ({ value: x.opt.value, _meta: x })),
+        FAV_KEY
+    ).map(x => x._meta);
+
+    let lastWasFav = null;
+    body.innerHTML = '';
+    sorted.forEach(({ opt, idx }) => {
         const txt = (opt.textContent || '').trim();
         const checked = opt.selected ? 'checked' : '';
-        return `
-            <label class="ggg-wi-item ${opt.selected ? 'selected' : ''}"
-                   data-idx="${idx}" data-text="${escapeAttr(txt.toLowerCase())}">
-                <input type="checkbox" ${checked}>
-                <span class="ggg-wi-item-name">${escapeHtml(txt)}</span>
-            </label>
-        `;
-    }).join('');
-    body.innerHTML = items || '<div class="ggg-wi-empty">未发现世界书</div>';
+        const faved = isFav(FAV_KEY, opt.value);
+        // 收藏与普通之间分隔
+        if (lastWasFav === true && faved === false) {
+            const sep = document.createElement('div');
+            sep.className = 'ggg-ss-fav-sep';
+            body.appendChild(sep);
+        }
+        lastWasFav = faved;
 
-    // 绑定切换
-    body.querySelectorAll('.ggg-wi-item').forEach(li => {
-        const cb = li.querySelector('input');
-        cb.addEventListener('click', e => e.stopPropagation()); // 防双触发
+        const wrap = document.createElement('div');
+        wrap.className = 'ggg-wi-item'
+            + (opt.selected ? ' selected' : '')
+            + (faved ? ' ggg-ss-faved' : '');
+        wrap.dataset.idx = String(idx);
+        wrap.dataset.text = escapeAttr(txt.toLowerCase());
+        wrap.innerHTML = `
+            <input type="checkbox" ${checked}>
+            <span class="ggg-wi-item-name">${escapeHtml(txt)}</span>
+            <div class="menu_button menu_button_icon ggg-ss-fav-btn ${faved ? 'on' : ''}" title="${faved ? '取消收藏' : '收藏'}">
+                <i class="fa-${faved ? 'solid' : 'regular'} fa-heart"></i>
+            </div>
+        `;
+        const cb = wrap.querySelector('input');
+        cb.addEventListener('click', e => e.stopPropagation());
         cb.addEventListener('change', () => {
-            const idx = parseInt(li.dataset.idx, 10);
             sel.options[idx].selected = cb.checked;
-            li.classList.toggle('selected', cb.checked);
+            wrap.classList.toggle('selected', cb.checked);
             triggerNativeChange(sel);
             updateTriggerLabel(sel, document.getElementById(TRIGGER_ID));
-            updateSheetCount(sheet || li.closest('.ggg-wi-sheet'), sel);
+            updateSheetCount(sheet || wrap.closest('.ggg-wi-sheet'), sel);
         });
+        // 爱心按钮：与 select-sheet 共享同一份 selectFavs.world_info
+        wrap.querySelector('.ggg-ss-fav-btn').addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFav(FAV_KEY, opt.value);
+            renderOptions(sel, body, sheet);
+        });
+        body.appendChild(wrap);
     });
+    if (sorted.length === 0) {
+        body.innerHTML = '<div class="ggg-wi-empty">未发现世界书</div>';
+    }
 }
 
 function updateSheetCount(scope, sel) {
@@ -321,6 +358,11 @@ function closeSheet() {
     overlay?.classList.remove('open');
     sheet?.classList.remove('open');
     sheet?.style.setProperty('transform', 'translateY(100vh)', 'important');
+    if (overlay) {
+        const swallow = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
+        ['click','mousedown','mouseup','touchstart','touchend','pointerdown','pointerup']
+            .forEach(ev => overlay.addEventListener(ev, swallow, true));
+    }
     setTimeout(() => { overlay?.remove(); sheet?.remove(); }, 220);
 }
 

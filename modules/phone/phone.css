@@ -1,0 +1,2030 @@
+/* ============================================================
+ * 呱呱手机样式
+ * 关键定位（fixed 类）由 JS 内联 !important 写入，
+ * 这里只放外观、动画、内部布局
+ * ============================================================ */
+/* ---------- 灵动岛 ----------
+ * v0.2.36：默认胶囊 = 半透明酒馆主题色 + 主题描边（融入酒馆顶栏视觉）
+ *          单击隐藏酒馆顶栏后切换为纯黑色经典灵动岛形态
+ * 位置 (top) 由 JS 动态算：未隐藏时落在 topbar / extensionTopBar 下方，
+ *                        隐藏后回到顶部 6px
+ */
+.ggg-phone-island {
+    min-width: 56px;
+    height: 24px;
+    padding: 0 12px;
+    border-radius: 14px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.6));
+    border: 1px solid var(--SmartThemeQuoteColor, #888);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    /* top 跟随酒馆顶栏伸缩，与下方动画同步 */
+    transition: top 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                min-width 0.22s ease,
+                background 0.18s ease,
+                border-color 0.18s ease;
+}
+/* 隐藏顶栏后 → 纯黑色经典形态 */
+html.ggg-phone-topbar-hidden .ggg-phone-island {
+    background: #000 !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+.ggg-phone-island:active {
+    transform: translateX(-50%) scale(0.94) !important;
+}
+.ggg-phone-island-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 6px #4ade80aa;
+}
+/* ---------- 单击灵动岛后隐藏酒馆顶栏 + extensionTopBar ----------
+ * 高度归零让下方 #sheld 自动上移占位；同时清零酒馆顶栏高度变量。
+ */
+/* 顶栏元素加 transition：仅在 transform/opacity 上做动画
+ * 不动 height/overflow（避免裁剪下拉菜单），收起后用 visibility 兜底。 */
+#top-bar,
+#top-settings-holder,
+#extensionTopBar {
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.28s ease;
+    transform-origin: top center;
+}
+html.ggg-phone-topbar-hidden {
+    --topBarBlockSize: 0px !important;
+    --topBarHeight: 0px !important;
+}
+/* 收起：缩到 0 高度同时淡出；transition 结束后再 visibility:hidden 给 #sheld 让位 */
+html.ggg-phone-topbar-hidden #top-bar,
+html.ggg-phone-topbar-hidden #top-settings-holder,
+html.ggg-phone-topbar-hidden #extensionTopBar {
+    transform: scaleY(0) !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+/* ---------- 手机全屏壳 ---------- */
+.ggg-phone-shell {
+    background: #0f172a;
+    color: #f1f5f9;
+    overflow: hidden;
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    /* 适配手机刘海 / 小白条 */
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+/* 手机打开后，酒馆主 UI 元素隐藏（避免穿透/性能浪费） */
+html.ggg-phone-open #top-bar,
+html.ggg-phone-open #form_sheld,
+html.ggg-phone-open #sheld {
+    visibility: hidden !important;
+}
+.ggg-phone-status {
+    height: 36px;
+    flex-shrink: 0;
+}
+.ggg-phone-viewport {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+#ggg-phone-app-mount,
+#ggg-phone-app-mount > * {
+    width: 100%;
+    height: 100%;
+}
+/* ---------- 主页 ---------- */
+.ggg-phone-home {
+    width: 100%;
+    height: 100%;
+    padding: 16px 18px 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+/* 通用小组件外观 */
+.ggg-phone-widget {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 14px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+.ggg-phone-widget-title {
+    font-size: 12px;
+    opacity: 0.75;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.ggg-phone-widget-empty {
+    font-size: 12px;
+    opacity: 0.45;
+    text-align: center;
+    padding: 18px 0;
+}
+/* 时间小组件 —— 两行四列 */
+.ggg-phone-widget-time {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 6px 10px;
+    align-items: center;
+    padding: 14px 16px;
+}
+.ggg-phone-widget-time .t-cell {
+    line-height: 1.1;
+}
+.ggg-phone-widget-time .t-time {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.ggg-phone-widget-time .t-week {
+    grid-column: 3;
+    grid-row: 1;
+    font-size: 13px;
+    opacity: 0.85;
+    text-align: center;
+}
+.ggg-phone-widget-time .t-date {
+    grid-column: 4;
+    grid-row: 1;
+    font-size: 13px;
+    opacity: 0.85;
+    text-align: center;
+}
+.ggg-phone-widget-time .t-info {
+    grid-row: 2;
+    font-size: 11px;
+    opacity: 0.65;
+    text-align: center;
+}
+/* 一行 = 左 + 右 两块；每块占一半 */
+.ggg-phone-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+/* 2x2 APP 网格 */
+.ggg-phone-app-quad {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px 6px;
+    align-items: start;
+    justify-items: center;
+}
+.ggg-phone-app-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease;
+}
+.ggg-phone-app-cell:active { transform: scale(0.92); }
+.ggg-phone-app-cell.disabled { opacity: 0.55; }
+.ggg-phone-app-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.ggg-phone-app-name {
+    font-size: 11px;
+    color: #e2e8f0;
+}
+/* 收藏小组件 / 音乐小组件 */
+.ggg-phone-widget-fav,
+.ggg-phone-widget-music {
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+}
+/* ---------- App 通用容器（顶栏 + 内容） ---------- */
+.ggg-phone-app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+.ggg-phone-app-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+.ggg-phone-app-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+.ggg-phone-iconbtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-phone-iconbtn.placeholder {
+    background: transparent;
+    pointer-events: none;
+    visibility: hidden;
+}
+.ggg-phone-iconbtn:active { transform: scale(0.92); }
+/* App 内 Tab 切换 */
+.ggg-phone-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px 0;
+    flex-shrink: 0;
+}
+.ggg-phone-tab {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+.ggg-phone-tab.active {
+    background: var(--SmartThemeQuoteColor, #3b82f6);
+    color: #fff;
+}
+/* ---------- 图库 ---------- */
+.ggg-phone-gallery-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    align-content: start;
+}
+.ggg-phone-gallery-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 0;
+    opacity: 0.45;
+    font-size: 13px;
+}
+.ggg-phone-gallery-cell {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+}
+.ggg-phone-gallery-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* ============================================================
+ * PC 悬浮窗入口（贴 sheld 右侧，可拖拽）
+ * ============================================================ */
+.ggg-phone-pc-floater {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px 8px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #f1f5f9;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: transform 0.12s ease, box-shadow 0.18s ease;
+}
+.ggg-phone-pc-floater:hover { box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45); }
+.ggg-phone-pc-floater:active { cursor: grabbing; transform: scale(0.96); }
+/* v0.2.17：PC 悬浮窗手机打开时不变色 */
+.ggg-phone-pc-floater.open { background: rgba(15, 23, 42, 0.85); }
+/* v0.2.17：PC 悬浮窗也支持贴边吸附 */
+.ggg-phone-pc-floater.edge-snap {
+    opacity: 0.45;
+    transition: opacity 0.3s ease, left 0.3s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.ggg-phone-pc-floater.edge-snap:hover,
+.ggg-phone-pc-floater.edge-snap:active { opacity: 1; }
+.ggg-phone-pc-floater-icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+}
+.ggg-phone-pc-floater-text {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+/* ============================================================
+ * 移动端悬浮球入口（贴边吸附）
+ * ============================================================ */
+.ggg-phone-mobile-ball {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.85);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    opacity: 0.9;
+}
+.ggg-phone-mobile-ball:active { cursor: grabbing; transform: scale(0.94); }
+.ggg-phone-mobile-ball.open { background: var(--SmartThemeQuoteColor, #3b82f6); }
+.ggg-phone-mobile-ball-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 8px #4ade80aa;
+}
+
+/* ============================================================
+ * Phase 1：主题 token
+ * 默认（深色）写在 .ggg-phone-shell 上；浅色覆盖
+ * ============================================================ */
+.ggg-phone-shell,
+.ggg-phone-shell.theme-dark {
+    --ggg-bg: #0f172a;
+    --ggg-text: #f1f5f9;
+    --ggg-text-dim: #94a3b8;
+    --ggg-card: rgba(255, 255, 255, 0.08);
+    --ggg-card-hover: rgba(255, 255, 255, 0.12);
+    --ggg-border: rgba(255, 255, 255, 0.08);
+    --ggg-accent: var(--SmartThemeQuoteColor, #3b82f6);
+    --ggg-mask: rgba(0, 0, 0, 0.5);
+    color: var(--ggg-text);
+}
+.ggg-phone-shell.theme-light {
+    --ggg-bg: #f8fafc;
+    --ggg-text: #0f172a;
+    --ggg-text-dim: #64748b;
+    --ggg-card: rgba(255, 255, 255, 0.7);
+    --ggg-card-hover: rgba(255, 255, 255, 0.9);
+    --ggg-border: rgba(0, 0, 0, 0.08);
+    --ggg-mask: rgba(0, 0, 0, 0.35);
+    color: var(--ggg-text);
+}
+
+/* 让 root 容器透出背景 */
+.ggg-phone-root {
+    width: 100%;
+    height: 100%;
+    will-change: transform;
+}
+
+/* ============================================================
+ * Phase 1：状态栏
+ * ============================================================ */
+.ggg-phone-shell .ggg-phone-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    height: 28px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ggg-text);
+    flex-shrink: 0;
+}
+.ggg-status-left, .ggg-status-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ggg-status-bat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.ggg-status-bat-pct {
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+/* ============================================================
+ * Phase 1：图库（背景选择反馈）
+ * ============================================================ */
+.ggg-phone-gallery-hint {
+    padding: 8px 14px 0;
+    font-size: 11px;
+    color: var(--ggg-text-dim);
+}
+.ggg-phone-gallery-cell {
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.12s;
+}
+.ggg-phone-gallery-cell:active { transform: scale(0.96); }
+.ggg-phone-gallery-cell.active {
+    outline: 2px solid var(--ggg-accent);
+    outline-offset: -2px;
+}
+.ggg-phone-gallery-mark {
+    position: absolute;
+    right: 4px; bottom: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--ggg-accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+
+/* ============================================================
+ * Phase 2：PP App 容器
+ * ============================================================ */
+.ggg-pp-app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--ggg-text);
+    background: rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(2px);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 顶栏 */
+.ggg-pp-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--ggg-border);
+    flex-shrink: 0;
+    backdrop-filter: blur(10px);
+    background: var(--ggg-card);
+}
+.ggg-pp-topbar-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--ggg-card-hover);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-topbar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ggg-pp-topbar-avatar i { font-size: 16px; opacity: 0.7; }
+.ggg-pp-topbar-title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+}
+.ggg-pp-topbar-actions { display: flex; gap: 4px; }
+.ggg-pp-iconbtn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ggg-text);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-iconbtn:hover { background: var(--ggg-card-hover); }
+.ggg-pp-iconbtn:active { transform: scale(0.92); }
+
+/* 主体 */
+.ggg-pp-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.ggg-pp-page { padding: 0; }
+
+/* 底栏 */
+.ggg-pp-bottombar {
+    display: flex;
+    border-top: 1px solid var(--ggg-border);
+    background: var(--ggg-card);
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+    padding: 4px 0 6px;
+}
+.ggg-pp-bottom-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+    cursor: pointer;
+    color: var(--ggg-text-dim);
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+}
+.ggg-pp-bottom-tab.active { color: var(--ggg-accent); }
+.ggg-pp-bottom-icon {
+    position: relative;
+    font-size: 18px;
+    line-height: 1;
+}
+.ggg-pp-bottom-name { font-size: 10px; }
+.ggg-pp-bottom-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 7px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 9px;
+    line-height: 14px;
+    text-align: center;
+}
+
+/* 搜索框 */
+.ggg-pp-searchbar {
+    margin: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--ggg-card);
+    color: var(--ggg-text-dim);
+    font-size: 13px;
+}
+.ggg-pp-searchbar input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--ggg-text);
+    font-size: 13px;
+}
+
+/* 空状态 */
+.ggg-pp-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ggg-text-dim);
+}
+.ggg-pp-empty i {
+    font-size: 36px;
+    opacity: 0.4;
+    margin-bottom: 10px;
+}
+.ggg-pp-empty .hint { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+.ggg-pp-empty-mini { padding: 8px 14px; font-size: 12px; color: var(--ggg-text-dim); opacity: 0.7; }
+
+/* 会话列表 */
+.ggg-pp-chat-list {}
+.ggg-pp-chat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-chat-item:active { background: var(--ggg-card-hover); }
+.ggg-pp-chat-item .avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--ggg-card-hover);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.ggg-pp-chat-item .meta { flex: 1; min-width: 0; }
+.ggg-pp-chat-item .line1 { display: flex; justify-content: space-between; align-items: center; }
+.ggg-pp-chat-item .line2 { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+.ggg-pp-chat-item .name { font-size: 14px; font-weight: 500; }
+.ggg-pp-chat-item .time { font-size: 11px; color: var(--ggg-text-dim); }
+.ggg-pp-chat-item .preview {
+    font-size: 12px; color: var(--ggg-text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 200px;
+}
+.ggg-pp-chat-item .badge {
+    background: #ef4444; color: #fff; font-size: 10px;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; line-height: 18px; text-align: center;
+}
+
+/* 联系人 */
+.ggg-pp-section { padding: 8px 0; }
+.ggg-pp-section-title {
+    padding: 8px 14px 6px;
+    font-size: 12px;
+    color: var(--ggg-text-dim);
+    display: flex; align-items: center; gap: 6px;
+}
+.ggg-pp-contact-list {}
+.ggg-pp-contact-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-contact-item:active { background: var(--ggg-card-hover); }
+.ggg-pp-contact-item .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--ggg-card-hover);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.ggg-pp-contact-item .avatar.group { background: #f59e0b40; color: #f59e0b; }
+.ggg-pp-contact-item .name { font-size: 14px; }
+
+/* 左滑面板 */
+.ggg-pp-profile-mask {
+    position: absolute;
+    inset: 0;
+    background: var(--ggg-mask);
+    z-index: 10;
+    animation: ggg-fade-in 0.18s;
+}
+@keyframes ggg-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.ggg-pp-profile-panel {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 78%;
+    max-width: 320px;
+    background: var(--ggg-bg);
+    color: var(--ggg-text);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 11;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+.ggg-pp-profile-panel.open { transform: translateX(0); }
+.ggg-pp-profile-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 24px 16px 16px;
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-pp-profile-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--ggg-card-hover);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+}
+.ggg-pp-profile-meta { flex: 1; min-width: 0; }
+.ggg-pp-profile-nick { font-size: 16px; font-weight: 600; }
+.ggg-pp-profile-sig { font-size: 12px; color: var(--ggg-text-dim); margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ggg-pp-profile-id { font-size: 11px; color: var(--ggg-text-dim); }
+
+.ggg-pp-profile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 14px 16px;
+}
+.ggg-pp-profile-stats .stat {
+    background: var(--ggg-card);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+}
+.ggg-pp-profile-stats .num { font-size: 16px; font-weight: 600; }
+.ggg-pp-profile-stats .lbl { font-size: 11px; color: var(--ggg-text-dim); margin-top: 2px; }
+
+.ggg-pp-profile-list { padding: 0 8px 16px; }
+.ggg-pp-profile-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-profile-item:hover { background: var(--ggg-card); }
+.ggg-pp-profile-item:active { background: var(--ggg-card-hover); }
+.ggg-pp-profile-item .ico {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+.ggg-pp-profile-item .name { flex: 1; font-size: 14px; }
+.ggg-pp-profile-item .arrow { color: var(--ggg-text-dim); font-size: 11px; }
+
+/* ============================================================
+ * 美化覆盖层（v2）—— 让手机不再是一片灰
+ * 这一段放在文件末尾，覆盖前面的默认色
+ * ============================================================ */
+
+/* 默认 viewport 渐变（即使没拉到酒馆背景也好看）：紫→蓝→粉 mesh */
+.ggg-phone-shell .ggg-phone-viewport {
+    background:
+        radial-gradient(ellipse at 20% 0%, #7c3aed 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 30%, #ec489955 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 100%, #0ea5e9 0%, transparent 60%),
+        linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
+}
+.ggg-phone-shell.theme-light .ggg-phone-viewport {
+    background:
+        radial-gradient(ellipse at 20% 0%, #c4b5fd 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 30%, #fbcfe8 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 100%, #bae6fd 0%, transparent 60%),
+        linear-gradient(180deg, #f1f5f9 0%, #e0e7ff 100%);
+}
+
+/* 状态栏 —— 透明无背景，文字带阴影提升可读性 */
+.ggg-phone-shell .ggg-phone-status {
+    background: transparent;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    padding-top: 8px;
+    height: 32px;
+}
+.ggg-phone-shell.theme-light .ggg-phone-status { text-shadow: 0 1px 2px rgba(255,255,255,0.6); }
+
+/* 主页 widget 重做 —— 玻璃质感 + 高光 */
+.ggg-phone-home .ggg-phone-widget {
+    background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%);
+    border: 1px solid rgba(255,255,255,0.16);
+    box-shadow:
+        0 6px 20px rgba(0,0,0,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.18);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.theme-light .ggg-phone-home .ggg-phone-widget {
+    background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%);
+    border-color: rgba(255,255,255,0.7);
+    box-shadow:
+        0 6px 20px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255,255,255,1);
+}
+
+/* 时间小组件文字增强 */
+.ggg-phone-widget-time .t-time {
+    background: linear-gradient(180deg, #fff 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+.theme-light .ggg-phone-widget-time .t-time {
+    background: linear-gradient(180deg, #4f46e5 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+}
+.ggg-phone-widget-time .t-week,
+.ggg-phone-widget-time .t-date { font-weight: 600; }
+
+/* APP 图标 —— 渐变 + 玻璃高光 + 更软阴影 */
+.ggg-phone-app-icon {
+    background: linear-gradient(160deg, var(--icon-base, #3b82f6) 0%, color-mix(in srgb, var(--icon-base, #3b82f6) 70%, #000) 100%);
+    box-shadow:
+        0 6px 14px rgba(0,0,0,0.28),
+        inset 0 1px 0 rgba(255,255,255,0.35);
+    position: relative;
+    overflow: hidden;
+}
+.ggg-phone-app-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* 顶栏 / 底栏 —— 玻璃感 */
+.ggg-pp-topbar,
+.ggg-pp-bottombar {
+    background: linear-gradient(180deg, rgba(15,23,42,0.55) 0%, rgba(15,23,42,0.35) 100%);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-color: rgba(255,255,255,0.06);
+}
+.theme-light .ggg-pp-topbar,
+.theme-light .ggg-pp-bottombar {
+    background: linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.55) 100%);
+    border-color: rgba(0,0,0,0.06);
+}
+
+/* PP 主体也透出背景 */
+.ggg-pp-app {
+    background: transparent;
+    backdrop-filter: none;
+}
+
+/* 搜索框 */
+.ggg-pp-searchbar {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+}
+.theme-light .ggg-pp-searchbar {
+    background: rgba(255,255,255,0.7);
+    border-color: rgba(0,0,0,0.06);
+}
+
+/* 左滑面板：日/月主题切换按钮 */
+.ggg-pp-theme-btn {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    color: #fff;
+    width: 36px; height: 36px;
+    box-shadow: 0 4px 10px rgba(239,68,68,0.35);
+    flex-shrink: 0;
+}
+.ggg-pp-theme-btn:hover { transform: scale(1.05); }
+.theme-light .ggg-pp-theme-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    box-shadow: 0 4px 10px rgba(99,102,241,0.35);
+}
+
+/* 图库提示文字稍调 */
+.ggg-phone-gallery-hint {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    margin: 10px 14px 0;
+    padding: 8px 12px;
+}
+
+/* 安卓系/手机滚动条隐藏更彻底 */
+.ggg-phone-shell ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* ============================================================
+ * v3 修复
+ * ============================================================ */
+
+/* 1) viewport：禁用浏览器原生水平手势（iOS / Chrome 边缘后退） */
+.ggg-phone-shell .ggg-phone-viewport,
+.ggg-phone-shell .ggg-phone-root {
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+}
+
+/* 2) 悬浮球：改为大圆角方形（squircle 风格），更贴边 */
+.ggg-phone-mobile-ball {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%) !important;
+    box-shadow:
+        0 8px 22px rgba(99, 102, 241, 0.45),
+        inset 0 1px 0 rgba(255,255,255,0.25) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    opacity: 0.95 !important;
+}
+.ggg-phone-mobile-ball.open {
+    background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%) !important;
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.45) !important;
+}
+.ggg-phone-mobile-ball-dot {
+    width: 12px !important;
+    height: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 0 8px rgba(255,255,255,0.7) !important;
+}
+
+/* 3) PP 应用要有自己的"实心"背景，别再透出壁纸 */
+.ggg-pp-app {
+    background: var(--ggg-bg) !important;
+    backdrop-filter: none !important;
+}
+.ggg-phone-shell.theme-dark .ggg-pp-app {
+    background:
+        linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+}
+.ggg-phone-shell.theme-light .ggg-pp-app {
+    background:
+        linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+}
+/* 顶栏 / 底栏配合 PP 实心背景，去掉透明度 */
+.ggg-pp-app .ggg-pp-topbar,
+.ggg-pp-app .ggg-pp-bottombar {
+    background: var(--ggg-card) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* ============================================================
+ * 设置 App
+ * ============================================================ */
+.ggg-phone-settings { display: flex; flex-direction: column; height: 100%; background: var(--ggg-bg); }
+.ggg-set-body { flex: 1; display: flex; min-height: 0; }
+.ggg-set-side {
+    width: 80px;
+    background: var(--ggg-card);
+    border-right: 1px solid var(--ggg-border);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+.ggg-set-side-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    padding: 12px 4px;
+    cursor: pointer;
+    color: var(--ggg-text-dim);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+.ggg-set-side-item:active { background: var(--ggg-card-hover); }
+.ggg-set-side-item.active { color: var(--ggg-text); background: var(--ggg-card-hover); }
+.ggg-set-side-item .ico {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.ggg-set-side-item .name { font-size: 11px; }
+
+.ggg-set-main { flex: 1; overflow-y: auto; padding: 12px; }
+.ggg-set-page { display: flex; flex-direction: column; gap: 8px; }
+.ggg-set-h {
+    font-size: 12px;
+    color: var(--ggg-text-dim);
+    padding: 6px 4px;
+    margin-top: 4px;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.ggg-set-h-btn {
+    background: var(--ggg-accent);
+    color: #fff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+}
+.ggg-set-card {
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ggg-set-card.list-item { gap: 6px; }
+.ggg-set-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+}
+.ggg-set-row.toggle { gap: 12px; }
+.ggg-set-row.meta { color: var(--ggg-text-dim); font-size: 12px; }
+.ggg-set-row .lbl { font-size: 13px; }
+.ggg-set-row .val { font-size: 12px; color: var(--ggg-text-dim); }
+.ggg-set-row .hint { font-size: 11px; color: var(--ggg-text-dim); margin-top: 2px; }
+.ggg-set-row-actions { display: flex; gap: 4px; }
+.ggg-set-empty {
+    text-align: center;
+    padding: 20px 12px;
+    color: var(--ggg-text-dim);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.ggg-set-hint { font-size: 11px; color: var(--ggg-text-dim); margin-top: 4px; }
+
+/* 按钮 */
+.ggg-set-btn {
+    background: var(--ggg-card-hover);
+    border: 1px solid var(--ggg-border);
+    color: var(--ggg-text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    flex: 1; justify-content: center;
+}
+.ggg-set-btn.primary {
+    background: var(--ggg-accent);
+    color: #fff;
+    border-color: transparent;
+}
+.ggg-set-btn:active { transform: scale(0.97); }
+.ggg-set-iconbtn {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: var(--ggg-card-hover);
+    color: var(--ggg-text);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+}
+.ggg-set-iconbtn.danger { color: #ef4444; }
+
+/* 分段控制 */
+.ggg-set-seg { display: flex; gap: 6px; }
+.ggg-set-seg.vertical { flex-direction: column; }
+.ggg-set-seg button {
+    flex: 1;
+    background: var(--ggg-card-hover);
+    border: 1px solid var(--ggg-border);
+    color: var(--ggg-text);
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ggg-set-seg button.on {
+    background: var(--ggg-accent);
+    color: #fff;
+    border-color: transparent;
+}
+
+/* 字段 */
+.ggg-set-field { display: flex; flex-direction: column; gap: 4px; }
+.ggg-set-field label { font-size: 11px; color: var(--ggg-text-dim); }
+.ggg-set-field input,
+.ggg-set-field textarea {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--ggg-border);
+    color: var(--ggg-text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+}
+.theme-light .ggg-set-field input,
+.theme-light .ggg-set-field textarea { background: rgba(255,255,255,0.7); }
+.ggg-set-field input:focus,
+.ggg-set-field textarea:focus { border-color: var(--ggg-accent); }
+.ggg-set-field input[type="range"] { padding: 0; background: transparent; border: none; }
+
+/* 开关 */
+.ggg-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.ggg-switch input { opacity: 0; width: 0; height: 0; }
+.ggg-switch span {
+    position: absolute; inset: 0;
+    background: var(--ggg-card-hover);
+    border-radius: 22px;
+    transition: background 0.2s;
+}
+.ggg-switch span::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 2px; top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.ggg-switch input:checked + span { background: var(--ggg-accent); }
+.ggg-switch input:checked + span::before { transform: translateX(18px); }
+
+/* 壁纸预览 + 选择网格 */
+.ggg-set-wp-preview {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--ggg-border);
+}
+.ggg-set-wp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.ggg-set-wp-cell {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--ggg-card-hover);
+    cursor: pointer;
+    transition: transform 0.12s;
+}
+.ggg-set-wp-cell:active { transform: scale(0.96); }
+.ggg-set-wp-cell.active { outline: 2px solid var(--ggg-accent); outline-offset: -2px; }
+.ggg-set-wp-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ggg-set-wp-mark {
+    position: absolute;
+    right: 4px; bottom: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--ggg-accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* 预设 prompt 截断显示 */
+.preset-prompt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+}
+
+/* ============================================================
+ * v4 修复
+ * ============================================================ */
+
+/* 1) 悬浮球颜色：贴酒馆主题 */
+.ggg-phone-mobile-ball {
+    background: var(--SmartThemeBlurTintColor, rgba(15,23,42,0.85)) !important;
+    border-color: var(--SmartThemeBorderColor, rgba(255,255,255,0.18)) !important;
+    color: var(--SmartThemeBodyColor, #fff) !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4) !important;
+}
+/* v0.2.17：手机打开时不变色，保持原配色 */
+.ggg-phone-mobile-ball.open {
+    background: var(--SmartThemeBlurTintColor, rgba(15,23,42,0.85)) !important;
+}
+/* v0.2.17：贴边吸附 —— 半隐藏 + 半透明 */
+.ggg-phone-mobile-ball.edge-snap {
+    opacity: 0.45 !important;
+    transition: opacity 0.3s ease, left 0.3s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.ggg-phone-mobile-ball.edge-snap:hover,
+.ggg-phone-mobile-ball.edge-snap:active {
+    opacity: 1 !important;
+}
+.ggg-phone-mobile-ball-dot {
+    width: 10px !important; height: 10px !important;
+    background: var(--SmartThemeBodyColor, #fff) !important;
+    box-shadow: 0 0 6px var(--SmartThemeBodyColor, #fff)aa !important;
+    opacity: 0.8;
+}
+
+/* 2) 壁纸网格 / 图库网格：用 padding-bottom hack 替代 aspect-ratio
+ *    （在某些 ST 老浏览器 aspect-ratio 不生效会让 cell 高度塌陷叠在一起） */
+.ggg-set-wp-cell,
+.ggg-phone-gallery-cell {
+    aspect-ratio: auto !important;
+    height: 0 !important;
+    padding-bottom: 100% !important;
+    position: relative !important;
+}
+.ggg-set-wp-cell > img,
+.ggg-set-wp-cell > .ggg-set-wp-mark,
+.ggg-phone-gallery-cell > img,
+.ggg-phone-gallery-cell > .ggg-phone-gallery-mark {
+    position: absolute !important;
+}
+.ggg-set-wp-cell > img,
+.ggg-phone-gallery-cell > img {
+    inset: 0 !important;
+}
+.ggg-set-wp-grid {
+    max-height: none !important;
+}
+
+/* 3) 图库筛选条 */
+.ggg-phone-gallery-filter {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-phone-gallery-chip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--ggg-card);
+    color: var(--ggg-text-dim);
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--ggg-border);
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-phone-gallery-chip.active {
+    background: var(--ggg-accent);
+    color: #fff;
+    border-color: transparent;
+}
+
+/* 4) 预设条目卡片 */
+.ggg-preset-entry {
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+}
+.ggg-preset-entry.disabled { opacity: 0.5; }
+.ggg-preset-entry .grip {
+    color: var(--ggg-text-dim);
+    cursor: grab;
+    font-size: 12px;
+}
+.ggg-preset-entry .e-body { flex: 1; min-width: 0; }
+.ggg-preset-entry .e-name { font-size: 13px; font-weight: 500; }
+.ggg-preset-entry .e-meta { font-size: 11px; color: var(--ggg-text-dim); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ggg-preset-entry .e-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.ggg-preset-add-menu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+}
+.ggg-preset-add-menu button {
+    background: var(--ggg-card);
+    border: 1px dashed var(--ggg-border);
+    color: var(--ggg-text);
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.ggg-preset-add-menu button i { font-size: 16px; color: var(--ggg-accent); }
+
+/* select 控件样式（设置 App 内复用） */
+.ggg-set-select {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--ggg-border);
+    color: var(--ggg-text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23999' d='M2 4l4 4 4-4z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+}
+.theme-light .ggg-set-select { background-color: rgba(255,255,255,0.7); }
+.ggg-set-iconbtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ============================================================
+ * 预设预览覆盖层
+ * ============================================================ */
+.ggg-preset-preview {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 50;
+    display: flex; align-items: stretch; justify-content: center;
+    animation: gggFade 0.18s ease;
+}
+@keyframes gggFade { from { opacity: 0; } to { opacity: 1; } }
+.ggg-preset-preview-panel {
+    width: 100%;
+    background: var(--ggg-bg);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.ggg-preset-preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--ggg-border);
+    background: var(--ggg-card);
+}
+.ggg-preset-preview-head .title { font-size: 14px; font-weight: 600; color: var(--ggg-text); }
+.ggg-preset-preview-head .sub   { font-size: 11px; color: var(--ggg-text-dim); margin-top: 2px; }
+
+.ggg-preset-preview-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.ggg-preset-preview-block {
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    border-radius: 10px;
+    overflow: hidden;
+    border-left: 3px solid var(--ggg-text-dim);
+}
+.ggg-preset-preview-block.role-system    { border-left-color: #f59e0b; }
+.ggg-preset-preview-block.role-user      { border-left-color: #3b82f6; }
+.ggg-preset-preview-block.role-assistant { border-left-color: #10b981; }
+.ggg-preset-preview-block .head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--ggg-text-dim);
+    background: var(--ggg-card-hover);
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-preset-preview-block .head .role {
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.25);
+    color: var(--ggg-text);
+    font-size: 10px;
+}
+.ggg-preset-preview-block .head .name { flex: 1; color: var(--ggg-text); font-weight: 500; }
+.ggg-preset-preview-block .head .len  { color: var(--ggg-text-dim); }
+.ggg-preset-preview-block .body {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ggg-text);
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+/* ============================================================
+ * v5 修复：预览覆盖层重做 + PP 用户编辑
+ * ============================================================ */
+
+/* 让 settings 根容器作为定位上下文 */
+.ggg-phone-settings { position: relative; }
+
+/* 覆盖层重写：盖住整个 settings App，最高 z-index */
+.ggg-preset-preview {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0,0,0,0.65) !important;
+    z-index: 9999 !important;
+    display: flex; align-items: stretch; justify-content: center;
+}
+.ggg-preset-preview-panel {
+    width: 100%;
+    height: 100%;
+    background: var(--ggg-bg);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.ggg-preset-preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--ggg-border);
+    background: var(--ggg-card);
+    flex-shrink: 0;
+}
+.ggg-preset-preview-head .title { font-size: 14px; font-weight: 600; color: var(--ggg-text); }
+.ggg-preset-preview-head .sub   { font-size: 11px; color: var(--ggg-text-dim); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ggg-preset-preview-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+.ggg-preset-preview-block {
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    border-radius: 10px;
+    overflow: hidden;
+    border-left: 3px solid var(--ggg-text-dim);
+    flex-shrink: 0;
+}
+.ggg-preset-preview-block.role-system    { border-left-color: #f59e0b; }
+.ggg-preset-preview-block.role-user      { border-left-color: #3b82f6; }
+.ggg-preset-preview-block.role-assistant { border-left-color: #10b981; }
+.ggg-preset-preview-block .head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--ggg-text-dim);
+    background: var(--ggg-card-hover);
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-preset-preview-block .head .role {
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.25);
+    color: var(--ggg-text);
+    font-size: 9px;
+    flex-shrink: 0;
+}
+.ggg-preset-preview-block .head .name {
+    flex: 1; min-width: 0;
+    color: var(--ggg-text);
+    font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ggg-preset-preview-block .head .len {
+    color: var(--ggg-text-dim);
+    flex-shrink: 0;
+    font-size: 10px;
+}
+.ggg-preset-preview-block .body {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ggg-text);
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    /* 不限 max-height，让外层一个滚动条 */
+}
+
+/* ===== PP 用户资料编辑 ===== */
+.ggg-pp-profile-avatar {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+}
+.ggg-pp-profile-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.ggg-pp-profile-avatar:hover::after {
+    content: '\f030';  /* fa-camera */
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+}
+/* 简单 inline 编辑：把 input 长得像普通文字 */
+.ggg-pp-edit-inline {
+    background: transparent;
+    border: 1px dashed var(--ggg-border);
+    color: inherit;
+    font: inherit;
+    padding: 1px 4px;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+}
+.ggg-pp-edit-inline:focus { border-color: var(--ggg-accent); border-style: solid; background: rgba(0,0,0,0.15); }
+
+/* 头像选择弹层 */
+.ggg-pp-avatar-picker {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+}
+.ggg-pp-avatar-picker-panel {
+    background: var(--ggg-bg);
+    border: 1px solid var(--ggg-border);
+    border-radius: 14px;
+    width: 100%;
+    max-height: 80%;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.ggg-pp-avatar-picker-head {
+    padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-pp-avatar-picker-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--ggg-border);
+}
+.ggg-pp-avatar-picker-tabs > div {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ggg-text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+.ggg-pp-avatar-picker-tabs > div.active {
+    color: var(--ggg-accent);
+    border-bottom-color: var(--ggg-accent);
+}
+.ggg-pp-avatar-picker-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+.ggg-pp-avatar-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+.ggg-pp-avatar-picker-grid > div {
+    height: 0;
+    padding-bottom: 100%;
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ggg-card-hover);
+    cursor: pointer;
+}
+.ggg-pp-avatar-picker-grid > div > img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+.ggg-pp-avatar-picker-upload {
+    border: 2px dashed var(--ggg-border);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    color: var(--ggg-text-dim);
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+/* v0.2.17：账号切换列表 */
+.ggg-pp-account-list {
+    display: flex; flex-direction: column; gap: 4px;
+}
+.ggg-pp-account-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+}
+.ggg-pp-account-item:hover { background: var(--ggg-card-hover); }
+.ggg-pp-account-item.current {
+    border-color: var(--ggg-accent);
+    background: var(--ggg-card-hover);
+}
+.ggg-pp-account-item img {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--ggg-card-hover);
+    flex-shrink: 0;
+}
+.ggg-pp-account-item .meta { flex: 1; min-width: 0; }
+.ggg-pp-account-item .name {
+    font-size: 13px; font-weight: 500;
+    color: var(--ggg-text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ggg-pp-account-item .key {
+    font-size: 10px; color: var(--ggg-text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ============================================================
+ * v0.2.3 BUG 修复 + 体验优化（追加覆盖样式）
+ * ============================================================ */
+
+/* === 1. 灵动岛模式：shell 顶部留出 36px 刘海 ===
+ * 实现方式：给 .ggg-phone-status 加 margin-top:36px 把所有内容下推；
+ * shell::before 绝对定位在最上方画 36px 黑色刘海。
+ * 不再用 padding 方案 —— flex column 配 padding 在某些环境下被忽略。 */
+/* ============================================================
+ * v0.2.8 灵动岛常驻：酒馆顶部预留 36px 黑条 + 灵动岛胶囊
+ * ============================================================ */
+/* v0.2.31：灵动岛模式下整体把酒馆顶栏下推 36px
+ *   - 旧旧实现用 html padding-top:36px → 移动端 #form_sheld 被挤出屏幕；
+ *   - 上一版彻底取消推 → 灵动岛胶囊会挡住 #top-bar 中央按钮；
+ *   - 现实现：用 transform: translateY(36px) 同时推 #top-bar 和 TopInfoBar，
+ *     transform 只改变视觉位置不改变 layout（不影响 #form_sheld 等其它 fixed），
+ *     TopInfoBar 与 #top-bar 仍然紧贴。
+ *   - 仅在手机未打开时生效（手机面板自身已经在 shell 里覆盖整屏）。
+ */
+/* v0.2.36：灵动岛改为放在 topbar / #extensionTopBar 之下，
+ *          不再要求酒馆任何元素让出 36px。位置由 JS 动态算。 */
+/* v0.2.17：删除 ::after 装饰性黑胶囊（之前是冗余装饰，灵动岛真元素 .ggg-phone-island 自己就是胶囊） */
+
+/* v0.2.14：灵动岛模式下手机壳从 36px 处开始（让出顶部 36px 给酒馆灵动岛区，
+   这样无论手机开关，那 36px 永远是酒馆原 UI + 灵动岛胶囊） */
+/* v0.2.36：手机壳直接全屏，不再为灵动岛让出 36px（灵动岛打开手机时会被 ggg-phone-open 隐藏） */
+html.ggg-phone-island-mode #ggg-phone-shell {
+    top: 0 !important;
+    height: 100vh !important;
+    padding-top: 0 !important;
+    box-sizing: border-box !important;
+}
+/* 撤掉之前画在 shell 顶部的黑色刘海条（现在是酒馆露出来，不需要） */
+html.ggg-phone-island-mode #ggg-phone-shell::before { display: none !important; }
+/* 状态栏在两种模式下都透明 */
+#ggg-phone-shell .ggg-phone-status {
+    background: transparent !important;
+    margin-top: 0 !important;
+}
+#ggg-phone-shell { position: fixed; }
+
+/* === 2. App 通用容器 / 顶栏 / 状态栏 改为透明，让壁纸透出来 === */
+.ggg-phone-shell .ggg-phone-app {
+    background: transparent;
+}
+.ggg-phone-shell .ggg-phone-app-topbar {
+    background: transparent;
+    border-bottom-color: rgba(255,255,255,0.12);
+}
+.ggg-phone-shell.theme-light .ggg-phone-app-topbar {
+    border-bottom-color: rgba(0,0,0,0.10);
+}
+.ggg-phone-shell .ggg-phone-status {
+    background: transparent !important;
+}
+/* 设置 / 图库 内容区保持纯色 bg（在外层 ggg-phone-app 透明的基础上自定） */
+.ggg-phone-settings { background: var(--ggg-bg) !important; }
+.ggg-phone-gallery  { background: var(--ggg-bg) !important; }
+
+/* === 3. 设置左侧 sidebar 图标背景去掉，改为只显示图标本身 === */
+.ggg-set-side {
+    background: transparent;
+    border-right-color: rgba(255,255,255,0.10);
+}
+.ggg-phone-shell.theme-light .ggg-set-side {
+    border-right-color: rgba(0,0,0,0.08);
+}
+.ggg-set-side-item .ico {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--ggg-text-dim);
+    font-size: 18px;
+}
+.ggg-set-side-item.active .ico { color: var(--ggg-accent); }
+
+/* === 4. 时间小组件：三行高度 === */
+.ggg-phone-widget-time {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 14px 16px;
+    min-height: 156px;
+}
+.ggg-phone-widget-time .t-row1 {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
+}
+.ggg-phone-widget-time .t-row1 .t-time {
+    font-size: 36px; font-weight: 700; letter-spacing: 1px; line-height: 1;
+}
+.ggg-phone-widget-time .t-row1 .t-meta {
+    text-align: right; font-size: 12px; opacity: 0.85; line-height: 1.4;
+}
+.ggg-phone-widget-time .t-row2,
+.ggg-phone-widget-time .t-row3 {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: 11px; opacity: 0.75;
+}
+
+/* === 5. Home 网格（4 列）+ 编辑模式抖动 + 拖拽样式 === */
+.ggg-phone-home {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ggg-phone-home-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 64px;
+    gap: 10px;
+    align-content: start;
+}
+.ggg-phone-home-cell {
+    display: flex; align-items: stretch;
+    min-width: 0; min-height: 0;
+}
+.ggg-phone-home-cell.cell-widget > .ggg-phone-widget,
+.ggg-phone-home-cell.cell-widget > .ggg-phone-widget-time,
+.ggg-phone-home-cell.cell-widget > .ggg-phone-widget-fav,
+.ggg-phone-home-cell.cell-widget > .ggg-phone-widget-music {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    color: #e2e8f0;
+}
+.ggg-phone-shell.theme-light .ggg-phone-home-cell.cell-widget > * {
+    background: rgba(255, 255, 255, 0.7);
+    color: #0f172a;
+}
+.ggg-phone-home-cell.cell-app > .ggg-phone-app-cell {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+}
+
+/* 编辑模式：抖动 + 角落叉号占位 */
+@keyframes ggg-shake {
+    0%   { transform: rotate(-1.2deg); }
+    50%  { transform: rotate(1.2deg); }
+    100% { transform: rotate(-1.2deg); }
+}
+.ggg-phone-home.edit-mode .ggg-phone-home-cell {
+    animation: ggg-shake 0.35s infinite ease-in-out;
+}
+.ggg-phone-home.edit-mode .ggg-phone-home-cell:nth-child(2n) {
+    animation-delay: -0.18s;
+}
+.ggg-phone-home-cell.dragging {
+    opacity: 0.25;
+    animation: none !important;
+}
+/* v0.2.22：编辑模式下的 cell 禁用浏览器默认触摸滚动，让自定义拖拽接管 */
+.ggg-phone-home.edit-mode .ggg-phone-home-cell {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+/* hover 高亮 —— 用蓝色虚线框提示这里就是 swap 目标 */
+.ggg-phone-home-cell.drop-target {
+    outline: 2px dashed #3b82f6;
+    outline-offset: -3px;
+    background: rgba(59, 130, 246, 0.12);
+    border-radius: 14px;
+    animation: none !important;
+}
+/* 拖拽进行时整个 home 禁止文字选中、滚动 */
+.ggg-phone-home.dragging-active {
+    touch-action: none;
+    user-select: none;
+}
+.ggg-phone-home-ghost { will-change: transform, left, top; }
+.ggg-phone-home-edit-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: 10px;
+    background: rgba(15,23,42,0.6); color: #fff; font-size: 12px;
+}
+.ggg-phone-shell.theme-light .ggg-phone-home-edit-bar {
+    background: rgba(255,255,255,0.85); color: #0f172a;
+}
+
+/* === 6. 预设条目：拖拽手柄 + dragging 半透明 === */
+.ggg-preset-entry {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 10px;
+    background: var(--ggg-card);
+    border: 1px solid var(--ggg-border);
+    margin-bottom: 6px;
+}
+.ggg-preset-entry.disabled { opacity: 0.5; }
+.ggg-preset-entry.dragging { opacity: 0.4; }
+.ggg-preset-entry .e-handle {
+    color: var(--ggg-text-dim); cursor: grab; flex-shrink: 0;
+    padding: 4px;
+}
+.ggg-preset-entry .e-handle:active { cursor: grabbing; }
+.ggg-preset-entry .e-body { flex: 1; min-width: 0; }
+.ggg-preset-entry .e-name { font-size: 13px; font-weight: 500; }
+.ggg-preset-entry .e-meta {
+    font-size: 11px; color: var(--ggg-text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-top: 2px;
+}
+.ggg-preset-entry .e-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.ggg-preset-add-menu button {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 8px;
+    background: var(--ggg-card); border: 1px solid var(--ggg-border);
+    color: var(--ggg-text); font-size: 12px;
+    cursor: pointer;
+}
+.ggg-preset-add-menu button:hover { background: var(--ggg-card-hover); }
+
+/* === 7. PP 头像 hover icon 居中（修错位）—— 高优先级覆盖前面所有变体 === */
+.ggg-phone-shell .ggg-pp-profile-avatar,
+.ggg-pp-profile-mask + .ggg-pp-profile-panel .ggg-pp-profile-avatar {
+    position: relative !important;
+    overflow: hidden !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+}
+.ggg-phone-shell .ggg-pp-profile-avatar > img,
+.ggg-phone-shell .ggg-pp-profile-avatar > i {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    object-fit: cover !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+.ggg-phone-shell .ggg-pp-profile-avatar::after {
+    content: '\f030';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute !important;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0,0,0,0.55) !important;
+    color: #fff !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 2 !important;
+}
+.ggg-phone-shell .ggg-pp-profile-avatar:hover::after {
+    opacity: 1;
+}
+
+/* === 8. .ggg-set-btn.danger === */
+.ggg-set-btn.danger {
+    background: #ef4444; color: #fff; border-color: #dc2626;
+}
+.ggg-set-btn.danger:hover { background: #dc2626; }
+
+/* === 9. 设置内 set-empty 占位 === */
+.ggg-set-empty {
+    text-align: center; padding: 30px 12px;
+    color: var(--ggg-text-dim); font-size: 13px;
+}
+
+/* === v0.2.5: PP 左划资料面板修复 === */
+/* list 项的 icon 全部去背景，只保留彩色字体图标 */
+.ggg-pp-profile-list .ggg-pp-profile-item .ico {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+}
+/* 设置按钮：独立放在面板左下角 */
+.ggg-pp-profile-footer {
+    position: absolute;
+    left: 14px;
+    bottom: 16px;
+    z-index: 2;
+}
+.ggg-pp-profile-footer-btn {
+    background: transparent;
+    border: none;
+    color: var(--ggg-text-dim);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    -webkit-tap-highlight-color: transparent;
+}
+.ggg-pp-profile-footer-btn:hover {
+    background: var(--ggg-card-hover);
+    color: var(--ggg-text);
+}
+.ggg-pp-profile-footer-btn i { font-size: 14px; }
+
+/* 让面板有足够的底部空间不被设置按钮挡住列表 */
+/* padding 留给 footer，但保持 absolute（不能用 relative，否则会变成流式块出现在底栏后） */
+.ggg-pp-profile-panel { padding-bottom: 56px !important; }
+
+/* ============================================================
+ * v0.2.6 修复
+ * ============================================================ */
+
+/* PP 左划面板：z-index 高过底栏（仅 z-index，不动尺寸，避免破坏主布局） */
+.ggg-pp-app .ggg-pp-profile-mask { z-index: 200 !important; }
+.ggg-pp-app .ggg-pp-profile-panel { z-index: 201 !important; }
+
+/* 头像 picker：z-index 拉到面板之上，避免列表 icon 透出 */
+.ggg-pp-avatar-picker { z-index: 999 !important; }
+
+/* 主题切换按钮（日夜）：去背景，footer 里使用 */
+.ggg-pp-profile-footer .ggg-pp-theme-btn,
+.ggg-pp-profile-footer-btn.theme {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    color: var(--ggg-text-dim) !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 6px 8px !important;
+}
+.ggg-pp-profile-footer-btn.theme:hover,
+.ggg-pp-profile-footer .ggg-pp-theme-btn:hover {
+    background: var(--ggg-card-hover) !important;
+    color: var(--ggg-text) !important;
+    transform: none !important;
+}
+.ggg-pp-profile-footer {
+    display: flex;
+    gap: 6px;
+    left: 14px;
+    bottom: 16px;
+}
+
+/* 头像选择器：把"日夜按钮"那种 .ggg-pp-theme-btn 整体在 head 里隐藏（已经移到 footer） */
+.ggg-pp-profile-head .ggg-pp-theme-btn { display: none !important; }
+
+/* 预设 UI：选预设和按钮同行；条目按钮等大（grid 5 列） */
+.ggg-preset-current-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ggg-preset-current-row > select.ggg-set-select {
+    flex: 1;
+    min-width: 120px;
+}
+.ggg-preset-add-menu {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+}
+.ggg-preset-add-menu button {
+    width: 100% !important;
+    flex-direction: column !important;
+    height: 60px !important;
+    font-size: 11px !important;
+    gap: 4px !important;
+    padding: 6px !important;
+    text-align: center !important;
+    line-height: 1.2 !important;
+}
+.ggg-preset-add-menu button i { font-size: 16px; }
+
+/* 预览块：name 一行不换行 */
+.ggg-set-preview-block .pb-name,
+.ggg-set-preview .pb-name {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* 按钮默认不换行：避免"预览"两字硬要换行 */
+.ggg-set-btn { white-space: nowrap !important; }
