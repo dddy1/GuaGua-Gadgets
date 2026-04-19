@@ -124,9 +124,12 @@ function applyEnabledState() {
         //   且因为 transform 残留还会和 topbar 产生层叠/遮挡问题。
         //   现在让 TopInfoBar 走酒馆默认布局（紧贴 #top-bar 之下），
         //   灵动岛胶囊自己叠在 #top-bar 中央上方即可。
+        // v0.2.42：启动全屏键盘补偿
+        setupFullscreenKeyboardFix();
     } else {
         if (isPhoneShellOpen()) exitPhone();
         document.documentElement.classList.remove('ggg-phone-island-mode');
+        teardownFullscreenKeyboardFix();
     }
 }
 
@@ -137,10 +140,63 @@ function applyMobileStatusBarPolicy() {
         vp.name = 'viewport';
         document.head.appendChild(vp);
     }
-    const base = 'width=device-width, initial-scale=1';
+    // v0.2.42 关键修正：加上 interactive-widget=resizes-content
+    // 让软键盘弹出时 Chromium 直接缩 layout viewport 高度，
+    // 所有 position:fixed 元素跟着缩，不会被"视觉上顶出屏幕"。
+    const base = 'width=device-width, initial-scale=1, interactive-widget=resizes-content';
     vp.content = settings.phone?.hideMobileStatusBar
         ? `${base}, viewport-fit=cover`
         : base;
+}
+
+/* ============================================================
+ * v0.2.42：浏览器全屏（三击）下的键盘补偿
+ * 全屏时 interactive-widget 可能失效，layout viewport 不缩，
+ * 主动监听 visualViewport，把 #sheld 高度压成 vv.height，
+ * 这样 #form_sheld 会自动浮到键盘上方。
+ * ============================================================ */
+let _vvHandler = null;
+const KB_STYLE_ID = 'ggg-fullscreen-kb-style';
+
+function _isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function _kbApply(kbH) {
+    let s = document.getElementById(KB_STYLE_ID);
+    if (!s) {
+        s = document.createElement('style');
+        s.id = KB_STYLE_ID;
+        document.head.appendChild(s);
+    }
+    s.textContent = kbH > 50
+        ? `#sheld { bottom: ${kbH}px !important; transition: bottom .15s ease; }
+           body  { bottom: ${kbH}px !important; }`
+        : '';
+}
+function _kbCheck() {
+    if (!_isFullscreen()) { _kbApply(0); return; }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const kb = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
+    _kbApply(kb);
+}
+function setupFullscreenKeyboardFix() {
+    if (_vvHandler || !window.visualViewport) return;
+    _vvHandler = () => _kbCheck();
+    window.visualViewport.addEventListener('resize', _vvHandler);
+    window.visualViewport.addEventListener('scroll', _vvHandler);
+    document.addEventListener('fullscreenchange', _vvHandler);
+    document.addEventListener('webkitfullscreenchange', _vvHandler);
+}
+function teardownFullscreenKeyboardFix() {
+    if (_vvHandler && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', _vvHandler);
+        window.visualViewport.removeEventListener('scroll', _vvHandler);
+    }
+    document.removeEventListener('fullscreenchange', _vvHandler);
+    document.removeEventListener('webkitfullscreenchange', _vvHandler);
+    _vvHandler = null;
+    document.getElementById(KB_STYLE_ID)?.remove();
 }
 
 // v0.2.17：记录进入手机前酒馆是否已是浏览器全屏，决定退出时要不要解除全屏
