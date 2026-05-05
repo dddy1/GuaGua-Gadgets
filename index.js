@@ -11,8 +11,12 @@ import { initFont } from './modules/font/font.js';
 import { initCustomCSS, injectCustomCSS, injectAllCustomHTML, onThemeChangedCustomCSS } from './modules/custom-css/custom-css.js';
 import { initWorldInfoSheet } from './modules/world-info-sheet/world-info-sheet.js';
 import { initSelectSheet } from './modules/select-sheet/select-sheet.js';
+import { initTools, applyGlobalBeautify } from './modules/tools/tools.js';
 import { initPhone } from './modules/phone/phone.js';
 import { initFontRescue } from './modules/font-rescue/font-rescue.js';
+import { initCharacterCards } from './modules/character-cards/character-cards.js';
+import { initFloatingBall } from './modules/phone/shell/floating-ball.js';
+import { RELEASE_MODE } from './modules/phone/release-flag.js';
 
 // 紧急救援：启动时立即注册检测，与 ST 设置加载顺序无关
 initFontRescue();
@@ -32,6 +36,7 @@ export let settings = {
     uiCustomEnabled: true,
     toolsEnabled: true,
     gallery: [],
+    memes: [],
     avatars: [],
     themeOverrides: {},
     fonts: { enabled: true, list: [] },
@@ -54,24 +59,37 @@ export function getThemeData() {
     return settings.themeOverrides[currentThemeName];
 }
 
+function cloneSettingsValue(value) {
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return value;
+    }
+}
+
 export function saveAllSettings() {
     extension_settings[SETTINGS_KEY] = {
         enabled: settings.enabled,
         beautifyEnabled: settings.beautifyEnabled,
         uiCustomEnabled: settings.uiCustomEnabled,
         toolsEnabled: settings.toolsEnabled,
-        gallery: settings.gallery,
-        avatars: settings.avatars,
-        themeOverrides: settings.themeOverrides,
-        fonts: settings.fonts,
-        wiSheet: settings.wiSheet,
-        phone: settings.phone,
+        gallery: cloneSettingsValue(settings.gallery),
+        memes: cloneSettingsValue(settings.memes),
+        avatars: cloneSettingsValue(settings.avatars),
+        themeOverrides: cloneSettingsValue(settings.themeOverrides),
+        fonts: cloneSettingsValue(settings.fonts),
+        wiSheet: cloneSettingsValue(settings.wiSheet),
+        phone: cloneSettingsValue(settings.phone),
+        floatingBall: cloneSettingsValue(settings.floatingBall),
+        longScreenshot: cloneSettingsValue(settings.longScreenshot),
+        globalBeautify: cloneSettingsValue(settings.globalBeautify),
         // select-sheet 模块持久化字段（之前漏写，导致每次保存把收藏抹掉）
-        selectSheet: settings.selectSheet,
-        selectFavs: settings.selectFavs,
+        selectSheet: cloneSettingsValue(settings.selectSheet),
+        selectFavs: cloneSettingsValue(settings.selectFavs),
         _migrated: true,
     };
-    SillyTavern.getContext().saveSettingsDebounced();
+    window.__ggg_settings = settings;
+    return SillyTavern.getContext().saveSettingsDebounced();
 }
 
 // ============================================================
@@ -90,6 +108,7 @@ eventSource.on(event_types.APP_READY, async () => {
         loadModuleCSS('modules/custom-css/custom-css.css');
         loadModuleCSS('modules/world-info-sheet/world-info-sheet.css');
         loadModuleCSS('modules/select-sheet/select-sheet.css');
+        loadModuleCSS('modules/tools/tools.css');
         loadModuleCSS('modules/phone/phone.css');
 
         loadSettings();
@@ -107,7 +126,10 @@ eventSource.on(event_types.APP_READY, async () => {
         injectAllCustomHTML();
         initWorldInfoSheet();
         initSelectSheet();
+        initTools();
         initPhone();
+        initFloatingBall();
+        if (!RELEASE_MODE) initCharacterCards();
 
         updateTabStates();
         updateUICustomVisibility();
@@ -155,15 +177,19 @@ function loadSettings() {
     settings.uiCustomEnabled = saved.uiCustomEnabled !== false;
     settings.toolsEnabled = saved.toolsEnabled !== false;
     settings.gallery = saved.gallery || [];
+    settings.memes = saved.memes || [];
     settings.avatars = saved.avatars || [];
     settings.themeOverrides = saved.themeOverrides || {};
     settings.fonts = saved.fonts || { enabled: true, list: [] };
     settings.wiSheet = saved.wiSheet || { enabled: false, pcMode: false };
+    settings.globalBeautify = saved.globalBeautify || { items: [] };
     settings.phone = saved.phone || { enabled: false, hideMobileStatusBar: false };
+    if (RELEASE_MODE) settings.phone.enabled = false;
+    settings.floatingBall = saved.floatingBall || { enabled: true, showTopbar: false, showFullscreen: false };
+    settings.longScreenshot = saved.longScreenshot || { enabled: true };
     // select-sheet 持久化字段恢复（之前漏读，导致升级后收藏丢失）
     settings.selectSheet = saved.selectSheet || { mobileEnabled: true, pcEnabled: true };
     settings.selectFavs  = saved.selectFavs  || {};
-
     if (saved.overrides && Object.keys(saved.overrides).length > 0 && !saved._migrated) {
         const theme = getThemeName();
         if (!settings.themeOverrides[theme]) {
@@ -176,6 +202,7 @@ function loadSettings() {
     }
 
     currentThemeName = getThemeName();
+    window.__ggg_settings = settings;
     syncToggleUI();
 }
 
@@ -184,13 +211,23 @@ function syncToggleUI() {
     const beautify = document.getElementById('ggg-toggle-beautify');
     const tools    = document.getElementById('ggg-toggle-tools');
     const uiCustom = document.getElementById('ggg-toggle-ui-custom');
+    const floatBall = document.getElementById('ggg-floating-ball-enable');
+    const floatTopbar = document.getElementById('ggg-floating-ball-show-topbar');
+    const floatFullscreen = document.getElementById('ggg-floating-ball-show-fullscreen');
     if (master)   master.checked   = settings.enabled;
     if (beautify) beautify.checked = settings.beautifyEnabled;
     if (tools)    tools.checked    = settings.toolsEnabled;
     if (uiCustom) uiCustom.checked = settings.uiCustomEnabled;
+    if (floatBall) floatBall.checked = settings.floatingBall?.enabled !== false;
+    if (floatTopbar) floatTopbar.checked = !!settings.floatingBall?.showTopbar;
+    if (floatFullscreen) floatFullscreen.checked = !!settings.floatingBall?.showFullscreen;
 
     const featureSection = document.getElementById('ggg-feature-toggles-section');
     if (featureSection) featureSection.style.display = settings.enabled ? '' : 'none';
+    const floatSubSection = document.getElementById('ggg-floating-ball-subtoggles');
+    if (floatSubSection) {
+        floatSubSection.style.display = settings.enabled && settings.floatingBall?.enabled !== false ? '' : 'none';
+    }
 }
 
 // ============================================================
@@ -202,6 +239,12 @@ export function updateTabStates() {
 
     tabContainer.querySelectorAll('.ggg-tab').forEach(tab => {
         const tabName = tab.dataset.tab;
+        if (tabName === 'phone' && RELEASE_MODE) {
+            tab.classList.add('disabled');
+            tab.style.display = 'none';
+            return;
+        }
+        tab.style.display = '';
         if (tabName === 'main') return;
         if (!settings.enabled) {
             tab.classList.add('disabled');
@@ -266,13 +309,20 @@ function initBeautifyNav() {
 // 主面板
 // ============================================================
 function initMainPanel() {
+    const notifyFloatingBallChanged = () => {
+        syncToggleUI();
+        window.dispatchEvent(new CustomEvent('ggg-floating-ball-config-changed'));
+    };
+
     document.getElementById('ggg-master-toggle')?.addEventListener('change', (e) => {
         settings.enabled = e.target.checked;
         syncToggleUI();
         updateTabStates();
         updateUICustomVisibility();
         injectOverrideStyle();
+        applyGlobalBeautify();
         saveAllSettings();
+        notifyFloatingBallChanged();
     });
 
     document.getElementById('ggg-toggle-beautify')?.addEventListener('change', (e) => {
@@ -280,12 +330,14 @@ function initMainPanel() {
         updateTabStates();
         updateUICustomVisibility();
         injectOverrideStyle();
+        applyGlobalBeautify();
         saveAllSettings();
     });
 
     document.getElementById('ggg-toggle-tools')?.addEventListener('change', (e) => {
         settings.toolsEnabled = e.target.checked;
         updateTabStates();
+        applyGlobalBeautify();
         saveAllSettings();
     });
 
@@ -293,6 +345,27 @@ function initMainPanel() {
         settings.uiCustomEnabled = e.target.checked;
         updateUICustomVisibility();
         saveAllSettings();
+    });
+
+    document.getElementById('ggg-floating-ball-enable')?.addEventListener('change', (e) => {
+        if (!settings.floatingBall) settings.floatingBall = {};
+        settings.floatingBall.enabled = e.target.checked;
+        saveAllSettings();
+        notifyFloatingBallChanged();
+    });
+
+    document.getElementById('ggg-floating-ball-show-topbar')?.addEventListener('change', (e) => {
+        if (!settings.floatingBall) settings.floatingBall = {};
+        settings.floatingBall.showTopbar = e.target.checked;
+        saveAllSettings();
+        notifyFloatingBallChanged();
+    });
+
+    document.getElementById('ggg-floating-ball-show-fullscreen')?.addEventListener('change', (e) => {
+        if (!settings.floatingBall) settings.floatingBall = {};
+        settings.floatingBall.showFullscreen = e.target.checked;
+        saveAllSettings();
+        notifyFloatingBallChanged();
     });
 }
 

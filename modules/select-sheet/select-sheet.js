@@ -231,6 +231,12 @@ function findSelectForSelect2(container) {
     return container.parentNode?.querySelector('select');
 }
 
+function isolateSheetPointerEvents(sheet) {
+    const stop = (e) => e.stopPropagation();
+    ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']
+        .forEach(ev => sheet.addEventListener(ev, stop));
+}
+
 // ============================================================
 // 收藏按钮注入到指定 select 旁边
 // ============================================================
@@ -312,6 +318,54 @@ function updateFavBtnActiveState(btn, sel) {
 // ============================================================
 let activeSheet = null;
 
+// 移动浏览器非全屏时，100vh 可能包含已收起的地址栏/底栏区域。
+// 底部 sheet 必须按 visualViewport 的当前可见区域定位，否则最后几项会落在屏幕外。
+function getSheetViewportRect() {
+    const vv = window.visualViewport;
+    return {
+        width: Math.max(1, Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 1)),
+        height: Math.max(1, Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 1)),
+        top: Math.max(0, Math.floor(vv?.offsetTop || 0)),
+        left: Math.max(0, Math.floor(vv?.offsetLeft || 0)),
+    };
+}
+
+// 把可见视口尺寸写成 CSS 变量，保留 transform 定位方案以避开酒馆 html transform 的影响。
+function applySheetViewport(panel, overlay) {
+    const rect = getSheetViewportRect();
+    const maxHeight = Math.floor(rect.height * (isMobileViewport() ? 0.80 : 0.75));
+    [panel, overlay].filter(Boolean).forEach(el => {
+        el.style.setProperty('--ggg-sheet-vh', `${rect.height}px`);
+        el.style.setProperty('--ggg-sheet-vw', `${rect.width}px`);
+        el.style.setProperty('--ggg-sheet-vv-top', `${rect.top}px`);
+        el.style.setProperty('--ggg-sheet-vv-left', `${rect.left}px`);
+    });
+    if (overlay) {
+        overlay.style.setProperty('top', `${rect.top}px`, 'important');
+        overlay.style.setProperty('left', `${rect.left}px`, 'important');
+        overlay.style.setProperty('width', `${rect.width}px`, 'important');
+        overlay.style.setProperty('height', `${rect.height}px`, 'important');
+    }
+    if (panel) {
+        panel.style.setProperty('top', `${rect.top}px`, 'important');
+        panel.style.setProperty('max-height', `${maxHeight}px`, 'important');
+    }
+}
+
+// 地址栏/底栏、软键盘、横竖屏变化都会改变 visualViewport，sheet 打开期间需要持续跟随。
+function bindSheetViewport(panel, overlay) {
+    const apply = () => applySheetViewport(panel, overlay);
+    apply();
+    window.addEventListener('resize', apply, { passive: true });
+    window.visualViewport?.addEventListener('resize', apply, { passive: true });
+    window.visualViewport?.addEventListener('scroll', apply, { passive: true });
+    return () => {
+        window.removeEventListener('resize', apply);
+        window.visualViewport?.removeEventListener('resize', apply);
+        window.visualViewport?.removeEventListener('scroll', apply);
+    };
+}
+
 function openSheet(sel) {
     if (activeSheet) closeSheet();
 
@@ -336,10 +390,9 @@ function openSheet(sel) {
         bottom: auto !important; top: 0 !important;
         margin: 0 auto !important;
         max-width: 720px !important;
-        max-height: 75vh !important;
         z-index: 99999 !important;
         display: flex !important; flex-direction: column !important;
-        transform: translateY(100vh) !important;
+        transform: translateY(var(--ggg-sheet-vh, 100vh)) !important;
     `;
 
     const labelText = guessLabelFor(sel) || (isMulti ? '请选择（多选）' : '请选择');
@@ -579,7 +632,7 @@ function openSheet(sel) {
     search.addEventListener('input', () => renderItems(search.value));
     ['keydown','keyup','keypress','input'].forEach(ev =>
         search.addEventListener(ev, e => e.stopPropagation()));
-    panel.addEventListener('click', e => e.stopPropagation());
+    isolateSheetPointerEvents(panel);
 
     if (isMulti) {
         panel.querySelectorAll('[data-act]').forEach(btn => {
@@ -592,13 +645,14 @@ function openSheet(sel) {
         });
     }
 
-    activeSheet = { overlay, panel, select: sel };
+    const cleanupViewport = bindSheetViewport(panel, overlay);
+    activeSheet = { overlay, panel, select: sel, cleanupViewport };
     renderItems('');
 
     // 入场动画（两次 rAF 让初始 transform 先 commit）
     requestAnimationFrame(() => requestAnimationFrame(() => {
         overlay.classList.add('open');
-        panel.style.setProperty('transform', 'translateY(calc(100vh - 100%))', 'important');
+        panel.style.setProperty('transform', 'translateY(calc(var(--ggg-sheet-vh, 100vh) - 100%))', 'important');
     }));
 
     // ESC 关闭
@@ -610,9 +664,10 @@ function openSheet(sel) {
 
 function closeSheet() {
     if (!activeSheet) return;
-    const { overlay, panel } = activeSheet;
+    const { overlay, panel, cleanupViewport } = activeSheet;
     activeSheet = null;
-    panel.style.setProperty('transform', 'translateY(100vh)', 'important');
+    cleanupViewport?.();
+    panel.style.setProperty('transform', 'translateY(var(--ggg-sheet-vh, 100vh))', 'important');
     overlay.classList.remove('open');
     // 关闭过程中保留 overlay 拦截一切 pointer 事件，避免合成 click 穿透到下层
     // 比如恰好点在某个 select / select2 上，会触发酒馆原生下拉

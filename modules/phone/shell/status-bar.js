@@ -3,12 +3,20 @@
  * 显示：左 时间 ；右 信号/Wi-Fi/电量
  * 电量用 navigator.getBattery()（Chromium 系），失败则隐藏
  */
+import { getPhoneNow } from '../core/phone-time.js';
 
 let _cleanups = [];
+let _mountToken = 0;
 
 export function mountStatusBar() {
+    unmountStatusBar();
+    const mountToken = ++_mountToken;
     const slot = document.querySelector('#ggg-phone-shell .ggg-phone-status');
     if (!slot) return;
+    if (!document.documentElement.classList.contains('ggg-phone-pc')) {
+        slot.innerHTML = '';
+        return;
+    }
     slot.innerHTML = `
         <div class="ggg-status-left">
             <span class="ggg-status-time">--:--</span>
@@ -26,13 +34,16 @@ export function mountStatusBar() {
     // 时间
     const timeEl = slot.querySelector('.ggg-status-time');
     const tick = () => {
-        const d = new Date();
+        const d = getPhoneNow();
         const pad = (n) => String(n).padStart(2, '0');
         timeEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
     tick();
     const t = setInterval(tick, 30 * 1000);
     _cleanups.push(() => clearInterval(t));
+    const onTimeChange = () => tick();
+    window.addEventListener('ggg-phone-time-change', onTimeChange);
+    _cleanups.push(() => window.removeEventListener('ggg-phone-time-change', onTimeChange));
 
     // 电量
     const batEl = slot.querySelector('.ggg-status-bat');
@@ -40,6 +51,7 @@ export function mountStatusBar() {
     const iconEl = batEl.querySelector('i');
     if (typeof navigator.getBattery === 'function') {
         navigator.getBattery().then((bat) => {
+            if (mountToken !== _mountToken || !document.body.contains(slot)) return;
             const update = () => {
                 const lvl = Math.round(bat.level * 100);
                 pctEl.textContent = `${lvl}%`;
@@ -66,6 +78,7 @@ export function mountStatusBar() {
 }
 
 export function unmountStatusBar() {
+    _mountToken++;
     _cleanups.forEach(fn => { try { fn(); } catch {} });
     _cleanups = [];
 }

@@ -15,12 +15,12 @@ select.ggg-wi-trigger {
     cursor: pointer;
 }
 
-/* 全屏遮罩 —— 用 100vw/100vh 而非 inset:0，
-   规避祖先 transform 导致 fixed 定位失效的情况 */
+/* 全屏遮罩 —— 由 JS 写入 visualViewport 尺寸，兜底仍用视口单位。 */
 .ggg-wi-overlay {
     position: fixed;
     top: 0; left: 0;
-    width: 100vw; height: 100vh;
+    width: var(--ggg-sheet-vw, 100vw);
+    height: var(--ggg-sheet-vh, 100vh);
     z-index: 99998;
     background: color-mix(in srgb, #000 40%, transparent);
     backdrop-filter: blur(2px);

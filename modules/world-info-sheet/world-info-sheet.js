@@ -15,6 +15,7 @@ let observer = null;
 const WI_SELECTOR = '#world_info';
 const TRIGGER_ID = 'ggg-wi-trigger';
 const SHEET_ID = 'ggg-wi-sheet';
+let sheetViewportCleanup = null;
 
 // ============================================================
 // 初始化
@@ -161,6 +162,12 @@ function hideSelect2For(sel) {
     if (s2) s2.classList.add('ggg-wi-hidden');
 }
 
+function isolateSheetPointerEvents(sheet) {
+    const stop = (e) => e.stopPropagation();
+    ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']
+        .forEach(ev => sheet.addEventListener(ev, stop));
+}
+
 function updateTriggerLabel(sel, trigger) {
     if (!trigger) return;
     const selected = Array.from(sel.selectedOptions);
@@ -183,6 +190,55 @@ function updateTriggerLabel(sel, trigger) {
 // ============================================================
 // 底部面板
 // ============================================================
+// 移动浏览器非全屏时，100vh 可能包含浏览器栏收起后的额外高度。
+// 这里用 visualViewport 作为真实可见区域，避免 sheet 底部被放到屏幕外。
+function getSheetViewportRect() {
+    const vv = window.visualViewport;
+    return {
+        width: Math.max(1, Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 1)),
+        height: Math.max(1, Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 1)),
+        top: Math.max(0, Math.floor(vv?.offsetTop || 0)),
+        left: Math.max(0, Math.floor(vv?.offsetLeft || 0)),
+    };
+}
+
+// 继续用 transform 拉到底部，以绕开酒馆 html transform 对 fixed/bottom 的干扰。
+function applySheetViewport(sheet, overlay) {
+    const rect = getSheetViewportRect();
+    [sheet, overlay].filter(Boolean).forEach(el => {
+        el.style.setProperty('--ggg-sheet-vh', `${rect.height}px`);
+        el.style.setProperty('--ggg-sheet-vw', `${rect.width}px`);
+        el.style.setProperty('--ggg-sheet-vv-top', `${rect.top}px`);
+        el.style.setProperty('--ggg-sheet-vv-left', `${rect.left}px`);
+    });
+    if (overlay) {
+        overlay.style.setProperty('top', `${rect.top}px`, 'important');
+        overlay.style.setProperty('left', `${rect.left}px`, 'important');
+        overlay.style.setProperty('width', `${rect.width}px`, 'important');
+        overlay.style.setProperty('height', `${rect.height}px`, 'important');
+    }
+    if (sheet) {
+        sheet.style.setProperty('top', `${rect.top}px`, 'important');
+        sheet.style.setProperty('max-height', `${Math.floor(rect.height * 0.75)}px`, 'important');
+    }
+}
+
+// sheet 打开期间监听可见视口变化，地址栏、软键盘、横竖屏变化时立即重新贴底。
+function bindSheetViewport(sheet, overlay) {
+    sheetViewportCleanup?.();
+    const apply = () => applySheetViewport(sheet, overlay);
+    apply();
+    window.addEventListener('resize', apply, { passive: true });
+    window.visualViewport?.addEventListener('resize', apply, { passive: true });
+    window.visualViewport?.addEventListener('scroll', apply, { passive: true });
+    sheetViewportCleanup = () => {
+        window.removeEventListener('resize', apply);
+        window.visualViewport?.removeEventListener('resize', apply);
+        window.visualViewport?.removeEventListener('scroll', apply);
+        sheetViewportCleanup = null;
+    };
+}
+
 function openSheet(sel) {
     closeSheet();
     // overlay 与 sheet 拆为两个独立的 body 子节点 ——
@@ -196,9 +252,8 @@ function openSheet(sel) {
     sheet.className = 'ggg-wi-sheet';
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-label', '选择世界书');
-    // 关键定位 —— 关键点：酒馆把 <html> 设了 transform，导致 fixed 元素的
-    // 包含块不是视口（高度为 0）。所以这里用 vh 单位（永远相对视口）+
-    // transform translateY(calc(100vh - 100%)) 来把元素"拉"到视口底部
+    // 关键定位：酒馆可能给 <html> 设 transform，fixed 不能稳定依赖 bottom。
+    // 用 visualViewport 写入可见高度，再通过 transform 把面板拉到当前可见底部。
     const inline = sheet.style;
     inline.setProperty('position', 'fixed', 'important');
     inline.setProperty('top', '0', 'important');
@@ -208,10 +263,8 @@ function openSheet(sel) {
     inline.setProperty('margin', '0 auto', 'important');
     inline.setProperty('width', '100%', 'important');
     inline.setProperty('max-width', '720px', 'important');
-    inline.setProperty('max-height', '75vh', 'important');
     inline.setProperty('z-index', '99999', 'important');
-    // 起始：把 sheet 推到视口下方（100vh 即视口高 → 完全不可见）
-    inline.setProperty('transform', 'translateY(100vh)', 'important');
+    inline.setProperty('transform', 'translateY(var(--ggg-sheet-vh, 100vh))', 'important');
     inline.setProperty('display', 'flex', 'important');
     inline.setProperty('flex-direction', 'column', 'important');
     sheet.innerHTML = `
@@ -230,6 +283,7 @@ function openSheet(sel) {
     `;
     document.body.appendChild(overlay);
     document.body.appendChild(sheet);
+    bindSheetViewport(sheet, overlay);
 
     // 渲染选项列表
     const body = sheet.querySelector('.ggg-wi-sheet-body');
@@ -266,7 +320,7 @@ function openSheet(sel) {
         search.addEventListener(ev, e => e.stopPropagation()));
 
     // 阻止 sheet 内点击穿透到 overlay
-    sheet.addEventListener('click', e => e.stopPropagation());
+    isolateSheetPointerEvents(sheet);
 
     // 重新渲染 + 计数
     renderOptions(sel, body, sheet);
@@ -281,8 +335,7 @@ function openSheet(sel) {
         requestAnimationFrame(() => {
             overlay.classList.add('open');
             sheet.classList.add('open');
-            // 把 sheet 平移到视口底：100vh 减去 sheet 自身高度（100%）
-            sheet.style.setProperty('transform', 'translateY(calc(100vh - 100%))', 'important');
+            sheet.style.setProperty('transform', 'translateY(calc(var(--ggg-sheet-vh, 100vh) - 100%))', 'important');
         });
     });
 }
@@ -355,9 +408,10 @@ function closeSheet() {
     const overlay = document.getElementById(SHEET_ID);
     const sheet = document.querySelector('.ggg-wi-sheet');
     if (!overlay && !sheet) return;
+    sheetViewportCleanup?.();
     overlay?.classList.remove('open');
     sheet?.classList.remove('open');
-    sheet?.style.setProperty('transform', 'translateY(100vh)', 'important');
+    sheet?.style.setProperty('transform', 'translateY(var(--ggg-sheet-vh, 100vh))', 'important');
     if (overlay) {
         const swallow = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
         ['click','mousedown','mouseup','touchstart','touchend','pointerdown','pointerup']

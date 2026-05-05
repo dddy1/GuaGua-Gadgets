@@ -1,6 +1,6 @@
 /**
  * 主页（Home）—— Vue 组件
- * - 时间小组件：高度三行
+ * - 时间小组件：高度两行
  * - APP 图标 / 小组件：Pointer Events 拖拽换位
  *   v0.2.22：彻底重写为 PointerEvents 自定义拖拽
  *     - 长按 350ms 进入编辑模式（touchmove 阈值 10px 才算取消，防误触）
@@ -14,6 +14,13 @@
  */
 
 import { settings, saveAllSettings } from '../../../../index.js';
+import {
+    getPhoneNow,
+    getPhoneTimeSettings,
+    getPhoneTimeSnapshot,
+    scanCustomPhoneTimeFromLatest,
+    setPhoneTimeMode,
+} from '../../core/phone-time.js';
 
 const APP_DEFS = [
     { id: 'pp',         name: 'PP',     icon: 'fa-comments',     color: '#3b82f6', enabled: true  },
@@ -30,7 +37,7 @@ const APP_BY_ID = Object.fromEntries(APP_DEFS.map(a => [a.id, a]));
 // 默认布局（4 列网格）
 function defaultLayout() {
     return [
-        { type: 'widget', key: 'time', w: 4, h: 3 },   // 时间组件占满 4 列 × 3 行
+        { type: 'widget', key: 'time', w: 4, h: 2 },   // 时间组件占满 4 列 × 2 行
         { type: 'app',    key: 'pp',        w: 1, h: 1 },
         { type: 'app',    key: 'notebook',  w: 1, h: 1 },
         { type: 'app',    key: 'gallery',   w: 1, h: 1 },
@@ -50,7 +57,16 @@ function ensureLayout() {
     if (!Array.isArray(settings.phone.home.layout) || settings.phone.home.layout.length === 0) {
         settings.phone.home.layout = defaultLayout();
         saveAllSettings();
+        return;
     }
+    let changed = false;
+    settings.phone.home.layout.forEach((item) => {
+        if (item?.type === 'widget' && item.key === 'time' && item.h !== 2) {
+            item.h = 2;
+            changed = true;
+        }
+    });
+    if (changed) saveAllSettings();
 }
 
 export function createHomeComponent(Vue) {
@@ -62,15 +78,49 @@ export function createHomeComponent(Vue) {
         setup(props) {
             ensureLayout();
 
-            const now = ref(new Date());
+            const now = ref(getPhoneNow());
+            const timePickOpen = ref(false);
             let timer = null;
-            onMounted(() => { timer = setInterval(() => now.value = new Date(), 30 * 1000); });
-            onBeforeUnmount(() => { if (timer) clearInterval(timer); });
+            const refreshNow = () => { now.value = getPhoneNow(); };
+            onMounted(() => {
+                timer = setInterval(refreshNow, 30 * 1000);
+                window.addEventListener('ggg-phone-time-change', refreshNow);
+            });
+            onBeforeUnmount(() => {
+                if (timer) clearInterval(timer);
+                window.removeEventListener('ggg-phone-time-change', refreshNow);
+            });
 
             const pad = (n) => String(n).padStart(2, '0');
             const fmtHM   = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
             const fmtWeek = (d) => ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
             const fmtMD   = (d) => `${d.getMonth()+1}月${d.getDate()}日`;
+            const timeMode = Vue.computed(() => { now.value; return getPhoneTimeSettings().mode; });
+            const phoneWeek = Vue.computed(() => { now.value; return getPhoneTimeSnapshot().week; });
+            const weatherText = Vue.computed(() => { now.value; return getPhoneTimeSnapshot().weather || '晴 · 22°'; });
+            const chooseTimeMode = (mode) => {
+                setPhoneTimeMode(mode);
+                if (mode === 'custom') scanCustomPhoneTimeFromLatest({ force: true });
+                refreshNow();
+                timePickOpen.value = false;
+            };
+            const openTimePicker = (ev) => {
+                if (editMode.value) return;
+                ev?.stopPropagation?.();
+                timePickOpen.value = true;
+            };
+            let lastTimeTap = 0;
+            const onTimeWidgetTap = (ev) => {
+                if (editMode.value) return;
+                ev?.stopPropagation?.();
+                const nowTs = Date.now();
+                if (nowTs - lastTimeTap <= 320) {
+                    openTimePicker(ev);
+                    lastTimeTap = 0;
+                    return;
+                }
+                lastTimeTap = nowTs;
+            };
 
             // 用 reactive 数组拿 settings 的 layout 引用
             const layout = reactive(settings.phone.home.layout);
@@ -182,7 +232,7 @@ export function createHomeComponent(Vue) {
                 }
             };
 
-            const onDragUp = () => {
+            const onDragUp = async () => {
                 window.removeEventListener('pointermove', dragMoveHandler);
                 window.removeEventListener('pointerup', dragUpHandler);
                 window.removeEventListener('pointercancel', dragUpHandler);
@@ -193,10 +243,66 @@ export function createHomeComponent(Vue) {
                 dragIdx.value = -1; hoverIdx.value = -1;
                 dragOriginEl = null;
                 if (from >= 0 && to >= 0 && from !== to) {
-                    const moved = layout.splice(from, 1)[0];
-                    layout.splice(to, 0, moved);
+                    await flipSwap(from, to);
                     saveAllSettings();
                 }
+            };
+
+            // ============ FLIP 平滑换位动画 ============
+            // 思路：splice 前记录每个 cell 的视觉位置 → splice 后记录新位置
+            //   → 反向 transform 再过渡归零，得到流畅的"位置交换"动画
+            const flipSwap = async (from, to) => {
+                const grid = document.querySelector('#ggg-phone-app-mount .ggg-phone-home-grid');
+                if (!grid) {
+                    const m = layout.splice(from, 1)[0];
+                    layout.splice(to, 0, m);
+                    return;
+                }
+                const cells = Array.from(grid.querySelectorAll('.ggg-phone-home-cell'));
+                const beforeMap = new Map();
+                cells.forEach((el, i) => {
+                    const it = layout[i];
+                    if (!it) return;
+                    const r = el.getBoundingClientRect();
+                    beforeMap.set(it.type + ':' + it.key, { x: r.left, y: r.top });
+                });
+
+                // 实际 swap
+                const moved = layout.splice(from, 1)[0];
+                layout.splice(to, 0, moved);
+
+                await Vue.nextTick();
+
+                const newCells = Array.from(grid.querySelectorAll('.ggg-phone-home-cell'));
+                newCells.forEach((el, i) => {
+                    const it = layout[i];
+                    if (!it) return;
+                    const before = beforeMap.get(it.type + ':' + it.key);
+                    if (!before) return;
+                    const r = el.getBoundingClientRect();
+                    const dx = before.x - r.left;
+                    const dy = before.y - r.top;
+                    if (!dx && !dy) return;
+                    // 暂停抖动动画 + 关闭过渡，先把它"瞬移"回原位
+                    const prevAnim = el.style.animation;
+                    el.style.animation = 'none';
+                    el.style.transition = 'none';
+                    el.style.transform = `translate(${dx}px, ${dy}px)`;
+                    // 强制 reflow，确保起点被应用
+                    void el.offsetWidth;
+                    // 然后用过渡平滑滑到新位置（transform 归零）
+                    el.style.transition = 'transform .32s cubic-bezier(.22,1,.36,1)';
+                    el.style.transform = '';
+                    const cleanup = () => {
+                        el.style.transition = '';
+                        el.style.transform = '';
+                        el.style.animation = prevAnim;
+                        el.removeEventListener('transitionend', cleanup);
+                    };
+                    el.addEventListener('transitionend', cleanup);
+                    // 兜底：350ms 后强制清理
+                    setTimeout(cleanup, 360);
+                });
             };
 
             const onAppTap = (appId, ev) => {
@@ -227,7 +333,7 @@ export function createHomeComponent(Vue) {
             }));
 
             return {
-                now, fmtHM, fmtWeek, fmtMD,
+                now, fmtHM, fmtWeek, fmtMD, timePickOpen, timeMode, phoneWeek, weatherText, chooseTimeMode, openTimePicker, onTimeWidgetTap,
                 layout, editMode, exitEdit,
                 dragIdx, hoverIdx, dragGhost, ghostStyle,
                 onCellPointerDown, movePress, cancelPress,
@@ -260,21 +366,17 @@ export function createHomeComponent(Vue) {
 
                         <!-- 时间组件 -->
                         <template v-if="it.type === 'widget' && it.key === 'time'">
-                            <div class="ggg-phone-widget ggg-phone-widget-time">
+                            <div class="ggg-phone-widget ggg-phone-widget-time" @click.stop="onTimeWidgetTap" @dblclick.stop.prevent="openTimePicker">
                                 <div class="t-row1">
                                     <div class="t-time">{{ fmtHM(now) }}</div>
                                     <div class="t-meta">
-                                        <div class="t-week">{{ fmtWeek(now) }}</div>
+                                        <div class="t-week">{{ phoneWeek }}</div>
                                         <div class="t-date">{{ fmtMD(now) }}</div>
                                     </div>
                                 </div>
                                 <div class="t-row2">
-                                    <div><i class="ggg-fa fa-solid fa-sun" style="color:#fbbf24;"></i> 晴 · 22°</div>
+                                    <div><i class="ggg-fa fa-solid fa-sun" style="color:#fbbf24;"></i> {{ weatherText }}</div>
                                     <div>农历 三月初二</div>
-                                </div>
-                                <div class="t-row3">
-                                    <div><i class="ggg-fa fa-solid fa-location-dot"></i> 杭州</div>
-                                    <div>湿度 56% · 东北风</div>
                                 </div>
                             </div>
                         </template>
@@ -311,6 +413,20 @@ export function createHomeComponent(Vue) {
                                 <div class="ggg-phone-app-name">{{ getApp(it.key).name }}</div>
                             </div>
                         </template>
+                    </div>
+                </div>
+
+                <div v-if="timePickOpen" class="ggg-phone-time-picker-mask" @click.self="timePickOpen = false">
+                    <div class="ggg-phone-time-picker">
+                        <div class="tp-title">时间设置</div>
+                        <button :class="{ on: timeMode === 'local' }" @click="chooseTimeMode('local')">
+                            <i class="ggg-fa fa-solid fa-location-crosshairs"></i>
+                            <span>本地时间</span>
+                        </button>
+                        <button :class="{ on: timeMode === 'custom' }" @click="chooseTimeMode('custom')">
+                            <i class="ggg-fa fa-solid fa-clock-rotate-left"></i>
+                            <span>自定义时间</span>
+                        </button>
                     </div>
                 </div>
 

@@ -6,6 +6,10 @@
  */
 import { getThemeData, saveAllSettings, getCurrentThemeName } from '../../index.js';
 const EVT_CSS_SAVED = 'ggg-custom-css-saved';
+const THEME_ATTR = 'data-ggg-theme';
+const CSS_ATTR = 'data-ggg-css';
+const HTML_ATTR = 'data-ggg-html';
+const HTML_EXT_ATTR = 'data-ggg-html-ext';
 
 // ============================================================
 // 数据：获取并自动迁移
@@ -40,12 +44,50 @@ function getCustomData() {
 // ============================================================
 const cssEls = new Map(); // itemId → <style>
 
+function getThemeKey() {
+    return getCurrentThemeName() || '__default__';
+}
+
+function markInjectedNode(node, theme, kind, itemId) {
+    if (!node?.dataset) return;
+    node.dataset.gggTheme = theme;
+    if (kind === 'css') node.dataset.gggCss = itemId;
+    if (kind === 'html') node.dataset.gggHtml = itemId;
+    if (kind === 'html-ext') {
+        node.dataset.gggHtmlExt = itemId;
+        node.dataset.gggHtmlOwner = itemId;
+    }
+}
+
+function cleanupInjectedNodes(theme = null) {
+    const selector = [
+        `[${CSS_ATTR}]`,
+        `[${HTML_ATTR}]`,
+        `[${HTML_EXT_ATTR}]`,
+        '[id^="ggg-css-"]',
+        '[id^="ggg-html-"]',
+    ].join(',');
+
+    document.querySelectorAll(selector).forEach(node => {
+        if (theme && node.getAttribute(THEME_ATTR) === theme) return;
+        node.remove();
+    });
+}
+
+function cleanupLegacySliderArtifacts() {
+    document.querySelectorAll('.ggg-thumb').forEach(node => node.remove());
+    document.querySelectorAll('input[data-ggg-thumb]').forEach(node => {
+        node.removeAttribute('data-ggg-thumb');
+    });
+}
+
 function injectItemCSS(item) {
     removeItemCSS(item.id);
     if (!item.enabled || !item.css?.trim()) return;
+    const theme = getThemeKey();
     const el = document.createElement('style');
     el.id = `ggg-css-${item.id}`;
-    el.dataset.gggCss = item.id;
+    markInjectedNode(el, theme, 'css', item.id);
     el.textContent = item.css;
     document.head.appendChild(el);
     cssEls.set(item.id, el);
@@ -68,45 +110,421 @@ export function injectCustomCSS() {
 // ============================================================
 const injectedEls = new Map();
 
-function activateScripts(wrapper) {
-    wrapper.querySelectorAll('script').forEach(old => {
-        const s = document.createElement('script');
-        [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
-        s.textContent = old.textContent;
-        old.replaceWith(s);
+function collectNodesBetween(start, end) {
+    const nodes = [];
+    let node = start?.nextSibling || null;
+    while (node && node !== end) {
+        nodes.push(node);
+        node = node.nextSibling;
+    }
+    return nodes;
+}
+
+function isLegacyExternalArtifact(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.matches?.('.ggg-thumb')) return true;
+    return !!node.querySelector?.('.ggg-thumb');
+}
+
+function insertFragmentAt(target, position, fragment) {
+    switch (position) {
+        case 'beforebegin':
+            target.parentNode?.insertBefore(fragment, target);
+            return;
+        case 'afterbegin':
+            target.insertBefore(fragment, target.firstChild);
+            return;
+        case 'afterend':
+            target.parentNode?.insertBefore(fragment, target.nextSibling);
+            return;
+        case 'beforeend':
+        default:
+            target.appendChild(fragment);
+    }
+}
+
+function createScriptApi(runtime) {
+    const { tracker } = runtime;
+    const rememberAttr = (node, name) => {
+        if (!node || node.nodeType !== 1) return;
+        tracker.rememberAttr(node, name, node.getAttribute(name));
+    };
+    const registerExternalNode = (node) => {
+        if (!node) return;
+        if (node.nodeType === 11) {
+            Array.from(node.childNodes || []).forEach(registerExternalNode);
+            return;
+        }
+        if (node.nodeType !== 1) return;
+        tracker.registerExternalNode?.(node);
+    };
+    const trackListener = (target, type, listener, options) => {
+        if (!target?.addEventListener || !listener) return;
+        target.addEventListener(type, listener, options);
+        runtime.listeners.push({ target, type, listener, options });
+    };
+
+    return {
+        query(selector, root = document) {
+            return root?.querySelector?.(selector) || null;
+        },
+        queryAll(selector, root = document) {
+            return Array.from(root?.querySelectorAll?.(selector) || []);
+        },
+        create(tag, props = {}) {
+            const el = document.createElement(tag);
+            Object.entries(props).forEach(([key, value]) => {
+                if (key === 'text') el.textContent = value;
+                else if (key === 'html') el.innerHTML = value;
+                else if (key === 'className') el.className = value;
+                else if (value !== undefined) el[key] = value;
+            });
+            return el;
+        },
+        append(parent, child) {
+            parent?.appendChild?.(child);
+            registerExternalNode(child);
+            return child;
+        },
+        prepend(parent, child) {
+            parent?.insertBefore?.(child, parent.firstChild);
+            registerExternalNode(child);
+            return child;
+        },
+        before(target, node) {
+            target?.parentNode?.insertBefore?.(node, target);
+            registerExternalNode(node);
+            return node;
+        },
+        after(target, node) {
+            target?.parentNode?.insertBefore?.(node, target?.nextSibling || null);
+            registerExternalNode(node);
+            return node;
+        },
+        remove(node) {
+            node?.remove?.();
+        },
+        setAttr(node, name, value) {
+            rememberAttr(node, name);
+            if (value === null || value === undefined) node?.removeAttribute?.(name);
+            else node?.setAttribute?.(name, value);
+        },
+        setStyle(node, name, value) {
+            rememberAttr(node, 'style');
+            node?.style?.setProperty?.(name, value);
+        },
+        on(target, type, listener, options) {
+            trackListener(target, type, listener, options);
+            return listener;
+        },
+        off(target, type, listener, options) {
+            target?.removeEventListener?.(type, listener, options);
+            runtime.listeners = runtime.listeners.filter(it => !(it.target === target && it.type === type && it.listener === listener));
+        },
+        timeout(fn, ms = 0) {
+            const id = runtime.native.setTimeout(fn, ms);
+            runtime.timeouts.add(id);
+            return id;
+        },
+        clearTimeout(id) {
+            runtime.native.clearTimeout(id);
+            runtime.timeouts.delete(id);
+        },
+        interval(fn, ms = 0) {
+            const id = runtime.native.setInterval(fn, ms);
+            runtime.intervals.add(id);
+            return id;
+        },
+        clearInterval(id) {
+            runtime.native.clearInterval(id);
+            runtime.intervals.delete(id);
+        },
+        raf(fn) {
+            const id = runtime.native.requestAnimationFrame(fn);
+            runtime.rafs.add(id);
+            return id;
+        },
+        cancelRaf(id) {
+            runtime.native.cancelAnimationFrame(id);
+            runtime.rafs.delete(id);
+        },
+        observe(target, options, callback) {
+            const observer = new runtime.native.MutationObserver(callback);
+            observer.observe(target, options);
+            runtime.observers.push(observer);
+            return observer;
+        },
+        resizeObserve(target, callback) {
+            const observer = new runtime.native.ResizeObserver(callback);
+            observer.observe(target);
+            runtime.resizeObservers.push(observer);
+            return observer;
+        },
+        cleanup(fn) {
+            if (typeof fn === 'function') runtime.cleanups.push(fn);
+        },
+        setGlobal(key, value) {
+            if (!runtime.windowProps.has(key)) {
+                runtime.windowProps.set(key, {
+                    existed: Object.prototype.hasOwnProperty.call(window, key),
+                    value: window[key],
+                });
+            }
+            window[key] = value;
+        },
+        state: runtime.state,
+        log: (...args) => console.log('[ggg custom-html]', ...args),
+    };
+}
+
+function createScriptRuntime(itemId, tracker) {
+    return {
+        itemId,
+        tracker,
+        listeners: [],
+        observers: [],
+        resizeObservers: [],
+        timeouts: new Set(),
+        intervals: new Set(),
+        rafs: new Set(),
+        cleanups: [],
+        windowProps: new Map(),
+        state: {},
+        native: {
+            setTimeout: window.setTimeout.bind(window),
+            clearTimeout: window.clearTimeout.bind(window),
+            setInterval: window.setInterval.bind(window),
+            clearInterval: window.clearInterval.bind(window),
+            requestAnimationFrame: window.requestAnimationFrame.bind(window),
+            cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+            MutationObserver: window.MutationObserver,
+            ResizeObserver: window.ResizeObserver,
+            addEventListener: EventTarget.prototype.addEventListener,
+            removeEventListener: EventTarget.prototype.removeEventListener,
+        },
+    };
+}
+
+function cleanupScriptRuntime(runtime) {
+    runtime.resizeObservers.forEach(observer => observer?.disconnect?.());
+    runtime.observers.forEach(observer => observer?.disconnect?.());
+    runtime.listeners.forEach(({ target, type, listener, options }) => {
+        try { target?.removeEventListener?.(type, listener, options); } catch {}
+    });
+    runtime.timeouts.forEach(id => runtime.native.clearTimeout(id));
+    runtime.intervals.forEach(id => runtime.native.clearInterval(id));
+    runtime.rafs.forEach(id => runtime.native.cancelAnimationFrame(id));
+    runtime.cleanups.slice().reverse().forEach(fn => {
+        try { fn(); } catch (err) { console.warn('[ggg] cleanup 执行失败:', err); }
+    });
+    runtime.windowProps.forEach((snapshot, key) => {
+        try {
+            if (snapshot.existed) window[key] = snapshot.value;
+            else delete window[key];
+        } catch {}
+    });
+}
+
+function runInlineScript(scriptNode, itemId, tracker) {
+    const runtime = createScriptRuntime(itemId, tracker);
+    const api = createScriptApi(runtime);
+    const { native } = runtime;
+
+    const trackedSetTimeout = (fn, ms, ...args) => {
+        const id = native.setTimeout(fn, ms, ...args);
+        runtime.timeouts.add(id);
+        return id;
+    };
+    const trackedClearTimeout = (id) => {
+        native.clearTimeout(id);
+        runtime.timeouts.delete(id);
+    };
+    const trackedSetInterval = (fn, ms, ...args) => {
+        const id = native.setInterval(fn, ms, ...args);
+        runtime.intervals.add(id);
+        return id;
+    };
+    const trackedClearInterval = (id) => {
+        native.clearInterval(id);
+        runtime.intervals.delete(id);
+    };
+    const trackedRaf = (fn) => {
+        const id = native.requestAnimationFrame(fn);
+        runtime.rafs.add(id);
+        return id;
+    };
+    const trackedCancelRaf = (id) => {
+        native.cancelAnimationFrame(id);
+        runtime.rafs.delete(id);
+    };
+    function TrackedMutationObserver(callback) {
+        const observer = new native.MutationObserver(callback);
+        runtime.observers.push(observer);
+        return observer;
+    }
+    TrackedMutationObserver.prototype = native.MutationObserver.prototype;
+    function TrackedResizeObserver(callback) {
+        const observer = new native.ResizeObserver(callback);
+        runtime.resizeObservers.push(observer);
+        return observer;
+    }
+    TrackedResizeObserver.prototype = native.ResizeObserver.prototype;
+
+    try {
+        // Use scoped shims instead of monkeypatching host globals. The previous
+        // global patching would accidentally capture ST core timers/listeners
+        // created synchronously during script execution, which then got cleaned
+        // up on theme switch and broke later theme state updates.
+        const runner = new Function(
+            'api',
+            'cleanup',
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'MutationObserver',
+            'ResizeObserver',
+            scriptNode.textContent || '',
+        );
+        runner.call(
+            window,
+            api,
+            fn => api.cleanup(fn),
+            trackedSetTimeout,
+            trackedClearTimeout,
+            trackedSetInterval,
+            trackedClearInterval,
+            trackedRaf,
+            trackedCancelRaf,
+            TrackedMutationObserver,
+            TrackedResizeObserver,
+        );
+    } catch (err) {
+        console.warn(`[ggg] 执行脚本失败（${itemId}）:`, err);
+        cleanupScriptRuntime(runtime);
+        return null;
+    }
+
+    scriptNode.remove();
+    return runtime;
+}
+
+function activateScriptsBetween(start, end, itemId, tracker) {
+    const runtimes = [];
+    collectNodesBetween(start, end).forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.tagName === 'SCRIPT') {
+            const runtime = runInlineScript(node, itemId, tracker);
+            if (runtime) runtimes.push(runtime);
+            return;
+        }
+        node.querySelectorAll?.('script').forEach(script => {
+            const runtime = runInlineScript(script, itemId, tracker);
+            if (runtime) runtimes.push(runtime);
+        });
+    });
+    return runtimes;
+}
+
+function createMutationTracker(containsNode, theme, itemId) {
+    const externalNodes = [];
+    const attrChanges = new Map();
+
+    const rememberAttr = (node, name, oldValue) => {
+        let nodeChanges = attrChanges.get(node);
+        if (!nodeChanges) {
+            nodeChanges = new Map();
+            attrChanges.set(node, nodeChanges);
+        }
+        if (!nodeChanges.has(name)) {
+            nodeChanges.set(name, oldValue);
+        }
+    };
+
+    const observer = new MutationObserver(muts => {
+        for (const m of muts) {
+            if (m.type === 'childList') {
+                for (const node of m.addedNodes) {
+                    if (isLegacyExternalArtifact(node)) {
+                        registerExternalNode(node);
+                    }
+                }
+                continue;
+            }
+
+            if (m.type === 'attributes') {
+                const node = m.target;
+                if (
+                    node?.nodeType === 1 &&
+                    !containsNode(node) &&
+                    node.dataset?.gggHtmlExt === itemId
+                ) {
+                    rememberAttr(node, m.attributeName, m.oldValue);
+                }
+            }
+        }
+    });
+
+    observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeOldValue: true,
+    });
+
+    function registerExternalNode(node) {
+        if (!node || node.nodeType === 11) {
+            Array.from(node?.childNodes || []).forEach(registerExternalNode);
+            return;
+        }
+        if (node?.nodeType !== 1 || containsNode(node) || externalNodes.includes(node)) return;
+        markInjectedNode(node, theme, 'html-ext', itemId);
+        externalNodes.push(node);
+    }
+
+    return { observer, externalNodes, attrChanges, rememberAttr, registerExternalNode };
+}
+
+function revertTrackedAttributes(attrChanges) {
+    attrChanges.forEach((changes, node) => {
+        if (!node?.isConnected) return;
+        changes.forEach((oldValue, name) => {
+            try {
+                if (oldValue === null) node.removeAttribute(name);
+                else node.setAttribute(name, oldValue);
+            } catch {}
+        });
     });
 }
 
 function injectHTMLItem(item) {
     removeHTMLItem(item.id);
     if (!item.enabled || !item.html?.trim()) return;
+    const theme = getThemeKey();
 
-    let wrapper;
+    let mount;
     try {
         const tpl = document.createElement('div');
         tpl.innerHTML = item.html.trim();
-        wrapper = document.createElement('div');
-        wrapper.id = `ggg-html-${item.id}`;
-        wrapper.dataset.gggHtml = item.id;
-        wrapper.style.display = 'contents';
-        while (tpl.firstChild) wrapper.appendChild(tpl.firstChild);
+        const start = document.createComment(`ggg-html-start:${item.id}`);
+        const end = document.createComment(`ggg-html-end:${item.id}`);
+        const nodes = [];
+        while (tpl.firstChild) nodes.push(tpl.firstChild), tpl.removeChild(tpl.firstChild);
+        mount = { start, end, nodes, id: item.id };
     } catch (err) {
         console.warn('[ggg] HTML片段解析失败:', item.label, err);
         return;
     }
 
-    // 追踪脚本激活时在 wrapper 外部添加的节点，删除时一并清理
-    const externalNodes = [];
-    const mo = new MutationObserver(muts => {
-        for (const m of muts) {
-            for (const node of m.addedNodes) {
-                if (node.nodeType === 1 && !wrapper.contains(node)) {
-                    externalNodes.push(node);
-                }
-            }
-        }
-    });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(mount.start);
+    mount.nodes.forEach(node => fragment.appendChild(node));
+    fragment.appendChild(mount.end);
+
+    const containsNode = node => collectNodesBetween(mount.start, mount.end).some(it => it === node || it.contains?.(node));
+    const tracker = createMutationTracker(containsNode, theme, item.id);
 
     const selector = (item.target || '').trim();
     const position = item.position || 'beforeend';
@@ -115,11 +533,9 @@ function injectHTMLItem(item) {
         const target = document.querySelector(selector);
         if (target) {
             try {
-                target.insertAdjacentElement(position, wrapper);
-                injectedEls.set(item.id, wrapper);
-                activateScripts(wrapper);
-                mo.disconnect();
-                wrapper._ext = externalNodes;
+                insertFragmentAt(target, position, fragment);
+                const runtimes = activateScriptsBetween(mount.start, mount.end, item.id, tracker);
+                injectedEls.set(item.id, { ...mount, tracker, runtimes });
                 return;
             } catch (err) {
                 console.warn(`[ggg] 插入失败（${selector} / ${position}）:`, err);
@@ -129,18 +545,21 @@ function injectHTMLItem(item) {
         }
     }
 
-    document.body.appendChild(wrapper);
-    injectedEls.set(item.id, wrapper);
-    activateScripts(wrapper);
-    mo.disconnect();
-    wrapper._ext = externalNodes;
+    document.body.appendChild(fragment);
+    const runtimes = activateScriptsBetween(mount.start, mount.end, item.id, tracker);
+    injectedEls.set(item.id, { ...mount, tracker, runtimes });
 }
 
 function removeHTMLItem(id) {
-    const el = injectedEls.get(id);
-    if (el) {
-        el._ext?.forEach(node => { try { node.remove(); } catch {} });
-        el.remove();
+    const mount = injectedEls.get(id);
+    if (mount) {
+        mount.runtimes?.slice().reverse().forEach(cleanupScriptRuntime);
+        mount.tracker?.observer?.disconnect?.();
+        mount.tracker?.externalNodes?.forEach(node => { try { node.remove(); } catch {} });
+        revertTrackedAttributes(mount.tracker?.attrChanges || new Map());
+        collectNodesBetween(mount.start, mount.end).forEach(node => node.remove());
+        mount.start?.remove?.();
+        mount.end?.remove?.();
         injectedEls.delete(id);
     } else {
         document.getElementById(`ggg-html-${id}`)?.remove();
@@ -151,6 +570,8 @@ function removeHTMLItem(id) {
 export function injectAllCustomHTML() {
     [...injectedEls.keys()].forEach(removeHTMLItem);
     [...cssEls.keys()].forEach(removeItemCSS);
+    cleanupInjectedNodes();
+    cleanupLegacySliderArtifacts();
     for (const item of getCustomData().customHTML) {
         injectItemCSS(item);
         injectHTMLItem(item);

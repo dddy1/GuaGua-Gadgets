@@ -65,6 +65,26 @@
                             <span>工具</span>
                         </label>
                     </div>
+                    <div class="ggg-section-divider" style="margin: 12px 0"></div>
+                    <label class="ggg-toggle-label">
+                        <input type="checkbox" id="ggg-floating-ball-enable" checked />
+                        <i class="ggg-fa fa-solid fa-frog ggg-toggle-icon"></i>
+                        <span>启用悬浮球</span>
+                    </label>
+                    <div
+                        id="ggg-floating-ball-subtoggles"
+                        class="ggg-feature-toggles-inline"
+                        style="margin-top: 8px;"
+                    >
+                        <label class="ggg-toggle-label ggg-toggle-sub">
+                            <input type="checkbox" id="ggg-floating-ball-show-topbar" />
+                            <span>隐藏顶栏</span>
+                        </label>
+                        <label class="ggg-toggle-label ggg-toggle-sub">
+                            <input type="checkbox" id="ggg-floating-ball-show-fullscreen" />
+                            <span>全屏</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="ggg-section-divider"></div>
@@ -123,6 +143,8 @@
                     </div>
                     <div class="ggg-credits-content">
                         <span>Claude（主要开发协作）</span>
+                        <span class="ggg-credits-sep">·</span>
+                        <span>Codex（开发协作）</span>
                         <span class="ggg-credits-sep">·</span>
                         <span>DeepSeek（方案讨论）</span>
                         <span class="ggg-credits-sep">·</span>
@@ -520,7 +542,7 @@
                                         <b>HTML</b>：插入到目标 DOM 位置，<code
                                             >&lt;script&gt;</code
                                         >
-                                        会被正确执行
+                                        会被执行；推荐用内置 <code>api</code> 操作 DOM / 事件 / 定时器
                                     </li>
                                     <li>
                                         覆盖酒馆原样式加 <code>!important</code>
@@ -556,6 +578,56 @@
                                         <b>插入位置</b>：相对目标元素：内部末尾
                                         / 内部开头 / 元素之后 / 元素之前。
                                     </li>
+                                </ul>
+                                <p style="margin: 6px 0 2px">
+                                    <b>JS 推荐写法：</b>
+                                </p>
+                                <ul
+                                    style="
+                                        font-size: 0.88em;
+                                        line-height: 1.8;
+                                        padding-left: 18px;
+                                        margin: 0 0 8px;
+                                    "
+                                >
+                                    <li>
+                                        推荐通过 <code>api</code> 操作：<code>api.query</code> / <code>api.queryAll</code> / <code>api.append</code> / <code>api.on</code> / <code>api.timeout</code> / <code>api.observe</code> / <code>api.resizeObserve</code> / <code>api.setStyle</code> / <code>api.setAttr</code>
+                                    </li>
+                                    <li>
+                                        需要卸载时执行的逻辑可写 <code>cleanup(() =&gt; ...)</code>
+                                    </li>
+                                      <li>
+                                          直接写 <code>document</code> / <code>window</code> / 原生 <code>setTimeout</code> / <code>MutationObserver</code> 也会执行，但插件不会可靠跟踪这些副作用；想要主题切换后可卸载、可恢复，优先用 <code>api</code>
+                                      </li>
+                                </ul>
+                                <p style="margin: 6px 0 2px">
+                                    <b>api 作用速查：</b>
+                                </p>
+                                <ul
+                                    style="
+                                        font-size: 0.88em;
+                                        line-height: 1.8;
+                                        padding-left: 18px;
+                                        margin: 0 0 8px;
+                                    "
+                                >
+                                    <li><code>api.query(selector, root?)</code>：查找单个节点</li>
+                                    <li><code>api.queryAll(selector, root?)</code>：查找多个节点，返回数组</li>
+                                    <li><code>api.create(tag, props?)</code>：创建元素，<code>props</code> 可写 <code>text</code> / <code>html</code> / <code>className</code></li>
+                                    <li><code>api.append / api.prepend / api.before / api.after</code>：插入节点</li>
+                                    <li><code>api.remove(node)</code>：删除节点</li>
+                                    <li><code>api.setAttr(node, name, value)</code>：设置属性，并记录旧值方便卸载恢复</li>
+                                    <li><code>api.setStyle(node, name, value)</code>：设置内联样式，并记录旧值方便卸载恢复</li>
+                                    <li><code>api.on / api.off</code>：绑定 / 解绑事件，插件会跟踪监听器</li>
+                                    <li><code>api.timeout / api.clearTimeout</code>：定时器，卸载时会自动清理未结束的定时器</li>
+                                    <li><code>api.interval / api.clearInterval</code>：循环定时器</li>
+                                    <li><code>api.raf / api.cancelRaf</code>：动画帧回调</li>
+                                    <li><code>api.observe(target, options, callback)</code>：创建 <code>MutationObserver</code></li>
+                                    <li><code>api.resizeObserve(target, callback)</code>：创建 <code>ResizeObserver</code></li>
+                                    <li><code>api.cleanup(fn)</code>：注册卸载时执行的清理函数</li>
+                                    <li><code>api.setGlobal(key, value)</code>：写入 <code>window</code> 全局变量，并在卸载时恢复</li>
+                                    <li><code>api.state</code>：当前脚本自己的临时状态对象</li>
+                                    <li><code>api.log(...args)</code>：输出带前缀日志</li>
                                 </ul>
                                 <p style="opacity: 0.6; font-size: 0.85em">
                                     刷新页面自动恢复。可用下方按钮单独导出/导入。
@@ -669,7 +741,7 @@
                                 id="ggg-custom-html-textarea"
                                 class="ggg-code-textarea"
                                 style="min-height: 110px"
-                                placeholder="<!-- HTML（可空） -->&#10;<div style=&quot;position:fixed;bottom:20px;right:20px;&quot;>装饰</div>&#10;&#10;<!-- 或 JS 脚本 -->&#10;<script>console.log('呱！');&lt;/script>"
+                                placeholder="<!-- HTML（可空） -->&#10;<div style=&quot;position:fixed;bottom:20px;right:20px;&quot;>装饰</div>&#10;&#10;<!-- 或 JS 脚本（推荐用 api） -->&#10;<script>&#10;const box = api.create('div', { text: '呱！' });&#10;api.setStyle(box, 'position', 'fixed');&#10;api.setStyle(box, 'right', '20px');&#10;api.setStyle(box, 'bottom', '20px');&#10;api.append(document.body, box);&#10;cleanup(() =&gt; api.remove(box));&#10;</script>"
                             ></textarea>
 
                             <div class="ggg-chtml-fields">
@@ -815,13 +887,39 @@
 
 ## 代码注入方式
 - 「CSS」：直接注入酒馆页面的 &lt;style&gt; 标签，写标准 CSS 即可
-- 「HTML」：将任意 HTML / JS 插入页面 DOM，&lt;script&gt; 标签会被正确执行
+- 「HTML」：将任意 HTML / JS 插入页面 DOM，&lt;script&gt; 标签会被执行
 - 同一条目可同时包含 CSS 和 HTML（任一可空），共享条目名称
 
 ## HTML 注入注意事项
 - 覆盖酒馆原有样式需加 !important
 - 悬浮元素用 position:fixed（不填目标选择器时插到 &lt;body&gt; 末尾）
-- JS 脚本直接写 &lt;script&gt;...&lt;/script&gt; 放入 HTML 框，插件会自动执行
+- JS 脚本直接写 &lt;script&gt;...&lt;/script&gt; 放入 HTML 框
+- 优先使用插件内置 api，不要直接裸用 window / document 乱改页面
+- 可用 api：
+  - api.query(selector, root?)：查单个节点
+  - api.queryAll(selector, root?)：查多个节点，返回数组
+  - api.create(tag, props?)：创建元素；props 可写 text / html / className
+  - api.append(parent, child)：追加到末尾
+  - api.prepend(parent, child)：插到开头
+  - api.before(target, node)：插到目标前
+  - api.after(target, node)：插到目标后
+  - api.remove(node)：删除节点
+  - api.setAttr(node, name, value)：设置属性，并记录旧值
+  - api.setStyle(node, name, value)：设置内联样式，并记录旧值
+  - api.on(target, type, handler, options?)：绑定事件并跟踪
+  - api.off(target, type, handler, options?)：解绑事件
+  - api.timeout(fn, ms) / api.clearTimeout(id)：定时器
+  - api.interval(fn, ms) / api.clearInterval(id)：循环定时器
+  - api.raf(fn) / api.cancelRaf(id)：动画帧回调
+  - api.observe(target, options, callback)：MutationObserver
+  - api.resizeObserve(target, callback)：ResizeObserver
+  - api.cleanup(fn)：注册卸载清理逻辑
+  - api.setGlobal(key, value)：设置 window 全局变量，并在卸载时恢复
+  - api.state：当前脚本自己的临时状态对象
+  - api.log(...args)：输出带前缀日志
+- 可使用 cleanup(() =&gt; { ... }) 注册卸载清理逻辑
+  - 直接写 document/window/原生定时器/原生观察器也会执行，但插件不会可靠跟踪这些副作用；想要主题切换后可卸载、可恢复，优先用 api
+  - 如无必要，不要发网络请求，不要改原型链，不要长期占用全局变量
 
 ## 请帮我实现：
 [在这里描述你想要的效果]</pre
@@ -835,65 +933,121 @@
 
             <!-- ========== 工具面板 ========== -->
             <div id="ggg-panel-tools" class="ggg-panel">
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
-                        <i class="ggg-fa fa-solid fa-book-open"></i> 世界书面板
-                    </div>
-                    <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
-                        把酒馆的世界书选择器替换为底部升起的可视化面板，便于在移动端选择多本世界书。
-                    </div>
-                    <label class="ggg-toggle-label">
-                        <input type="checkbox" id="ggg-wi-toggle-enabled">
-                        <i class="ggg-fa fa-solid fa-power-off ggg-toggle-icon"></i>
-                        <span>启用世界书底部面板</span>
-                    </label>
-                    <label class="ggg-toggle-label" style="margin-top:4px;">
-                        <input type="checkbox" id="ggg-wi-toggle-pc">
-                        <i class="ggg-fa fa-solid fa-desktop ggg-toggle-icon"></i>
-                        <span>PC 端也启用（用于测试）</span>
-                    </label>
-                    <div style="font-size:0.78em;opacity:0.5;margin-top:6px;">
-                        默认仅移动端（窗口宽度&lt;1000px）启用。开启 PC 端后桌面版也会替换。
-                    </div>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
-                        <i class="ggg-fa fa-solid fa-list-ul"></i> 全局下拉面板
-                    </div>
-                    <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
-                        把酒馆里所有原生 &lt;select&gt; 下拉（含多选）替换为底部升起的可视化面板，自带搜索/全选/清空。
-                    </div>
-                    <label class="ggg-toggle-label">
-                        <input type="checkbox" id="ggg-ss-toggle-mobile">
-                        <i class="ggg-fa fa-solid fa-mobile-screen ggg-toggle-icon"></i>
-                        <span>移动端启用</span>
-                    </label>
-                    <label class="ggg-toggle-label" style="margin-top:4px;">
-                        <input type="checkbox" id="ggg-ss-toggle-pc">
-                        <i class="ggg-fa fa-solid fa-desktop ggg-toggle-icon"></i>
-                        <span>PC 端也启用（用于测试）</span>
-                    </label>
-                    <div style="font-size:0.78em;opacity:0.5;margin-top:6px;">
-                        默认仅移动端（窗口宽度&lt;1000px）启用。已被"世界书面板"接管的下拉不会被重复劫持。
-                    </div>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
-                        <i class="ggg-fa fa-solid fa-camera"></i> 截图
-                    </div>
-                    <div class="ggg-empty-state" style="padding: 12px">
-                        <div>截图功能 - 开发中</div>
-                    </div>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
+                <div class="ggg-tools-nav">
+                    <button class="ggg-tools-nav-item active" type="button" data-tool-tab="selects">
+                        <i class="ggg-fa fa-solid fa-list-ul"></i> 下拉菜单
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-tool-tab="beautify">
+                        <i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i> 全局美化
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-tool-tab="memo">
                         <i class="ggg-fa fa-solid fa-note-sticky"></i> 备忘录
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-tool-tab="longshot">
+                        <i class="ggg-fa fa-solid fa-camera"></i> 长截图
+                    </button>
+                </div>
+
+                <div id="ggg-tool-panel-selects" class="ggg-tools-subpanel active">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-book-open"></i> 世界书面板
+                        </div>
+                        <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
+                            把酒馆的世界书选择器替换为底部升起的可视化面板，便于在移动端选择多本世界书。
+                        </div>
+                        <label class="ggg-toggle-label">
+                            <input type="checkbox" id="ggg-wi-toggle-enabled">
+                            <i class="ggg-fa fa-solid fa-power-off ggg-toggle-icon"></i>
+                            <span>启用世界书底部面板</span>
+                        </label>
+                        <label class="ggg-toggle-label" style="margin-top:4px;">
+                            <input type="checkbox" id="ggg-wi-toggle-pc">
+                            <i class="ggg-fa fa-solid fa-desktop ggg-toggle-icon"></i>
+                            <span>PC 端也启用（用于测试）</span>
+                        </label>
+                        <div style="font-size:0.78em;opacity:0.5;margin-top:6px;">
+                            默认仅移动端（窗口宽度&lt;1000px）启用。开启 PC 端后桌面版也会替换。
+                        </div>
                     </div>
-                    <div class="ggg-empty-state" style="padding: 12px">
-                        <div>备忘录功能 - 开发中</div>
+                    <div class="ggg-section-divider"></div>
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-list-ul"></i> 全局下拉面板
+                        </div>
+                        <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
+                            把酒馆里所有原生 &lt;select&gt; 下拉（含多选）替换为底部升起的可视化面板，自带搜索/全选/清空。
+                        </div>
+                        <label class="ggg-toggle-label">
+                            <input type="checkbox" id="ggg-ss-toggle-mobile">
+                            <i class="ggg-fa fa-solid fa-mobile-screen ggg-toggle-icon"></i>
+                            <span>移动端启用</span>
+                        </label>
+                        <label class="ggg-toggle-label" style="margin-top:4px;">
+                            <input type="checkbox" id="ggg-ss-toggle-pc">
+                            <i class="ggg-fa fa-solid fa-desktop ggg-toggle-icon"></i>
+                            <span>PC 端也启用（用于测试）</span>
+                        </label>
+                        <div style="font-size:0.78em;opacity:0.5;margin-top:6px;">
+                            默认仅移动端（窗口宽度&lt;1000px）启用。已被"世界书面板"接管的下拉不会被重复劫持。
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ggg-tool-panel-beautify" class="ggg-tools-subpanel">
+                    <div class="ggg-global-beautify-toolbar">
+                        <button id="ggg-global-beautify-add" class="menu_button ggg-btn-small" type="button">
+                            <i class="ggg-fa fa-solid fa-plus"></i> 添加条目
+                        </button>
+                        <button id="ggg-global-beautify-export-all" class="menu_button ggg-btn-small" type="button">
+                            <i class="ggg-fa fa-solid fa-file-export"></i> 全部导出
+                        </button>
+                    </div>
+                    <div id="ggg-global-beautify-list" class="ggg-global-beautify-list"></div>
+                </div>
+
+                <div id="ggg-tool-panel-memo" class="ggg-tools-subpanel">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-note-sticky"></i> 备忘录
+                        </div>
+                        <div class="ggg-empty-state" style="padding: 12px">
+                            <div>备忘录功能 - 开发中</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ggg-tool-panel-longshot" class="ggg-tools-subpanel">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-camera"></i> 酒馆长截图
+                        </div>
+                        <div class="ggg-longshot-desc">
+                            从当前滚动位置开始，选择当前酒馆标签页后自动分段截图并滚动。点击浮动的“结束并保存”会在当前位置收尾；滚到底也会自动保存。
+                        </div>
+                        <label class="ggg-toggle-label ggg-longshot-option">
+                            <input type="checkbox" id="ggg-longshot-enable-float-entry" checked>
+                            <span>在悬浮球面板里显示“长截图”</span>
+                        </label>
+                        <div class="ggg-longshot-actions">
+                            <button id="ggg-longshot-start" class="menu_button" type="button">
+                                <i class="ggg-fa fa-solid fa-play"></i> 开始长截图
+                            </button>
+                            <button id="ggg-longshot-cancel" class="menu_button" type="button" disabled>
+                                <i class="ggg-fa fa-solid fa-xmark"></i> 取消
+                            </button>
+                        </div>
+                        <label class="ggg-toggle-label ggg-longshot-option">
+                            <input type="checkbox" id="ggg-longshot-chat-only" checked>
+                            <span>只截聊天区域</span>
+                        </label>
+                        <label class="ggg-toggle-label ggg-longshot-option">
+                            <input type="checkbox" id="ggg-longshot-keep-bars" checked>
+                            <span>成品保留顶栏和底栏各一次</span>
+                        </label>
+                        <div id="ggg-longshot-status" class="ggg-longshot-status">
+                            截图时请选择“当前标签页/当前酒馆页面”，不要选择整个屏幕或浏览器窗口。
+                        </div>
                     </div>
                 </div>
             </div>
@@ -935,7 +1089,7 @@
                     </div>
                     <div class="ggg-section-desc">
                         在酒馆内嵌入一台"手机"，包含 PP 聊天、动态、设置等多种 App。<br>
-                        启用后顶部中央会出现 <b>灵动岛</b>：单击切换酒馆顶栏显隐，<b>双击进入/退出手机</b>。
+                        启用后会把“进入手机”加入统一悬浮球面板。
                     </div>
 
                     <div class="ggg-toggle-row">
@@ -950,15 +1104,6 @@
                             <input type="checkbox" id="ggg-phone-hide-mobile-status" />
                             <span>顶掉手机系统状态栏（沉浸式）</span>
                         </label>
-                    </div>
-
-                    <div class="ggg-toggle-row" style="display:flex;align-items:center;gap:10px;">
-                        <span style="min-width: 80px;">入口形态</span>
-                        <select id="ggg-phone-entry-mode" class="text_pole" style="flex:1;max-width:240px;">
-                            <option value="island">灵动岛（顶部胶囊，默认）</option>
-                            <option value="pc-floater">PC 悬浮窗（贴 sheld 右侧，可拖拽）</option>
-                            <option value="mobile-ball">移动悬浮球（贴边吸附）</option>
-                        </select>
                     </div>
 
                     <div class="ggg-toggle-row">
@@ -976,10 +1121,77 @@
                         </select>
                     </div>
 
+                    <div class="ggg-section-divider"></div>
+                    <div class="ggg-section-title" style="font-size:14px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                        <span><i class="ggg-fa fa-solid fa-clock"></i> 时间设置</span>
+                        <button id="ggg-phone-time-scan" class="menu_button" type="button" style="white-space:nowrap;flex:0 0 auto;">
+                            <i class="ggg-fa fa-solid fa-magnifying-glass"></i> 测试扫描
+                        </button>
+                    </div>
+                    <div id="ggg-phone-time-scan-status" style="font-size:12px;color:var(--SmallTextColor,#888);margin:4px 0 8px;"></div>
+                    <div class="ggg-toggle-row" style="display:flex;align-items:center;gap:10px;">
+                        <span style="min-width: 80px;">时间来源</span>
+                        <select id="ggg-phone-time-mode" class="text_pole" style="flex:1;max-width:240px;">
+                            <option value="local">本地时间</option>
+                            <option value="custom">自定义时间</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;max-width:680px;">
+                        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+                            <span>自定义时间正则</span>
+                            <input id="ggg-phone-time-pattern" class="text_pole" placeholder="/日期[:：]([0-9]{4}-[0-9]{1,2}-[0-9]{1,2}).*时间[:：]([0-9]{1,2}:[0-9]{2})/" />
+                        </label>
+                        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+                                <span>日期占位符</span>
+                                <input id="ggg-phone-time-date-group" class="text_pole" placeholder="1" />
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+                                <span>时间占位符</span>
+                                <input id="ggg-phone-time-clock-group" class="text_pole" placeholder="2" />
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+                                <span>星期占位符</span>
+                                <input id="ggg-phone-time-week-group" class="text_pole" placeholder="可留空" />
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+                                <span>天气占位符</span>
+                                <input id="ggg-phone-time-weather-group" class="text_pole" placeholder="可留空" />
+                            </label>
+                        </div>
+                        <div class="ggg-guide-wrapper" style="margin-top:2px;">
+                            <div class="ggg-guide-toggle" data-guide="phone-time-regex">
+                                <i class="ggg-fa fa-solid fa-circle-question"></i>
+                                <span>自定义时间正则说明</span>
+                                <i class="ggg-fa fa-solid fa-chevron-down ggg-guide-arrow"></i>
+                            </div>
+                            <div class="ggg-guide-content" data-guide-content="phone-time-regex">
+                                <p>自定义时间会在进入手机时从最新匹配楼层取锚点，之后按真实时间流逝；跨天会自动更新日期和星期。</p>
+                                <p>占位符指正则捕获组序号，也就是第几个 <code>(...)</code>。可填数字，也可填命名组名。</p>
+                                <div class="ggg-guide-subtitle">示例</div>
+                                <p>原始文本：</p>
+                                <pre style="white-space:pre-wrap;word-break:break-all;margin:4px 0 8px;"><code>»»»2023-5-16|周一|12:16|晴|Chs.1 嗯|北京|北京欢迎你«««</code></pre>
+                                <p>正则：</p>
+                                <pre style="white-space:pre-wrap;word-break:break-all;margin:4px 0 8px;"><code>»»»(\d{4}-\d{1,2}-\d{1,2})\|([^|]+)\|([^|]+)\|([^|]+)\|Chs\.(\d+)\s*([^|]+)\|([^|]+)\|([^«]+)«««</code></pre>
+                                <div class="ggg-guide-marks">
+                                    <div class="ggg-guide-mark-row"><span class="ggg-guide-mark-label">1</span><code>2023-5-16</code></div>
+                                    <div class="ggg-guide-mark-desc">日期占位符填 <code>1</code></div>
+                                    <div class="ggg-guide-mark-row"><span class="ggg-guide-mark-label">2</span><code>周一</code></div>
+                                    <div class="ggg-guide-mark-desc">星期占位符填 <code>2</code></div>
+                                    <div class="ggg-guide-mark-row"><span class="ggg-guide-mark-label">3</span><code>12:16</code></div>
+                                    <div class="ggg-guide-mark-desc">时间占位符填 <code>3</code></div>
+                                    <div class="ggg-guide-mark-row"><span class="ggg-guide-mark-label">4</span><code>晴</code></div>
+                                    <div class="ggg-guide-mark-desc">天气占位符填 <code>4</code></div>
+                                </div>
+                                <p>因此这条格式应填写：日期 <code>1</code>、时间 <code>3</code>、星期 <code>2</code>、天气 <code>4</code>。如果日期填 <code>1</code>、时间填 <code>2</code>，会把 <code>周一</code> 当成时间，解析会失败。</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="ggg-empty-state" style="padding: 12px; margin-top: 12px;">
                         <div style="font-size: 12px; opacity: 0.7;">
-                            三种入口共用同一套行为：<b>单击切换酒馆顶栏</b>，<b>双击进入/退出手机</b>。<br>
-                            后续按 <code>PHONE_PLAN.md</code> 逐阶段填充。
+                            手机、长截图、顶栏和全屏入口已经合并到同一个悬浮球里。<br>
+                            哪些动作显示在面板中，由“呱！”页和对应功能页的开关共同决定。
                         </div>
                     </div>
                 </div>

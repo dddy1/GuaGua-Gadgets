@@ -13,28 +13,89 @@ let activeTags = [];       // 当前筛选的 tag
 let sizeSort = false;       // 是否按尺寸分类
 let editMode = false;       // 图库编辑模式（原多选）
 let selectedIndices = new Set();
+let galleryRenderSeq = 0;
+
+// 表情包库
+let memeImages = [];
+let memeActiveTags = [];
+let memeEditMode = false;
+let memeSelectedIndices = new Set();
 
 // 头像库
 let avatarImages = [];
 let avatarActiveTags = [];
 let avatarBypassing = false;
+let avatarInterceptInitialized = false;
 let avatarEditMode = false;           // 头像库编辑模式
 let avatarSelectedIndices = new Set();// 头像库选中集合
 
 // 图片尺寸分类的宽高比阈值
 const ASPECT_SQUARE_MIN = 0.8;
 const ASPECT_SQUARE_MAX = 1.25;
+const SIZE_PROBE_CONCURRENCY = 4;
+
+let lazyBgObserver = null;
+
+function ensureLazyBgObserver() {
+    if (lazyBgObserver || typeof IntersectionObserver === 'undefined') return lazyBgObserver;
+    lazyBgObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const el = entry.target;
+            const url = el.dataset.bg;
+            if (url) {
+                el.style.backgroundImage = `url("${cssUrl(url)}")`;
+                delete el.dataset.bg;
+                el.classList.add('ggg-bg-loaded');
+            }
+            lazyBgObserver.unobserve(el);
+        });
+    }, { rootMargin: '240px 0px' });
+    return lazyBgObserver;
+}
+
+function cssUrl(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function bindLazyBackgrounds(root) {
+    if (!root) return;
+    const nodes = root.querySelectorAll('[data-bg]');
+    const observer = ensureLazyBgObserver();
+    nodes.forEach(el => {
+        if (observer) observer.observe(el);
+        else {
+            el.style.backgroundImage = `url("${cssUrl(el.dataset.bg)}")`;
+            delete el.dataset.bg;
+            el.classList.add('ggg-bg-loaded');
+        }
+    });
+}
+
+async function mapWithConcurrency(items, limit, worker) {
+    const queue = items.slice();
+    const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+        while (queue.length) {
+            const item = queue.shift();
+            await worker(item);
+        }
+    });
+    await Promise.all(workers);
+}
 
 export function initGallery() {
     const settings = getSettings();
     galleryImages = settings.gallery || [];
     galleryImages.forEach(img => { if (!img.tags) img.tags = []; });
+    memeImages = settings.memes || [];
+    memeImages.forEach(img => { if (!img.tags) img.tags = []; });
     avatarImages = settings.avatars || [];
     avatarImages.forEach(img => { if (!img.tags) img.tags = []; });
 
     renderGalleryPanel();
     initGalleryEvents();
     refreshGalleryGrid();
+    refreshMemeGrid();
     refreshAvatarGrid();
     updateAvatarShape();
     initAvatarIntercept();
@@ -145,9 +206,31 @@ function renderGalleryPanel() {
 
         <!-- ===== 表情包 ===== -->
         <div id="ggg-gallery-panel-sticker" class="ggg-gallery-panel">
-            <div class="ggg-empty-state">
+            <div class="ggg-gallery-toolbar-row">
+                <span class="ggg-gallery-count" id="ggg-meme-count">0 张表情包</span>
+                <div class="ggg-gallery-toolbar-actions">
+                    <div id="ggg-btn-edit-meme" class="menu_button menu_button_icon ggg-btn-small" title="编辑模式">
+                        <i class="ggg-fa fa-solid fa-pen-to-square"></i> 编辑
+                    </div>
+                    <div id="ggg-btn-upload-meme" class="menu_button menu_button_icon ggg-btn-small" title="上传表情包">
+                        <i class="ggg-fa fa-solid fa-upload"></i> 上传
+                    </div>
+                </div>
+            </div>
+            <div id="ggg-meme-edit-bar" style="display:none;">
+                <div id="ggg-meme-btn-select-all" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-check-double"></i> 全选</div>
+                <div id="ggg-meme-btn-deselect" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-xmark"></i> 取消</div>
+                <div id="ggg-meme-btn-batch-tag" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-tag"></i> 加标签</div>
+                <div id="ggg-meme-btn-batch-del-tag" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-tag"></i><i class="ggg-fa fa-solid fa-minus" style="font-size:0.6em;margin-left:1px;"></i> 删标签</div>
+                <div id="ggg-meme-btn-batch-delete" class="menu_button menu_button_icon ggg-btn-small ggg-btn-danger"><i class="ggg-fa fa-solid fa-trash"></i> 删除</div>
+                <span id="ggg-meme-edit-count" class="ggg-multi-count">已选 0 张</span>
+            </div>
+            <div id="ggg-meme-tag-filter"></div>
+            <div id="ggg-meme-grid" class="ggg-meme-grid"></div>
+            <div id="ggg-no-meme" class="ggg-empty-state">
                 <div class="ggg-empty-icon"><i class="ggg-fa fa-solid fa-face-smile"></i></div>
-                <div>表情包功能 - 开发中</div>
+                <div>还没有上传表情包</div>
+                <div class="ggg-empty-hint">点击上方"上传"按钮添加表情包</div>
             </div>
         </div>`;
 }
@@ -163,6 +246,7 @@ function initGalleryEvents() {
     });
 
     initAvatarEvents();
+    initMemeEvents();
 
     document.getElementById('ggg-btn-upload-gallery')?.addEventListener('click', () => {
         triggerUpload('gallery', () => refreshGalleryGrid());
@@ -477,23 +561,28 @@ function renderTagFilter() {
         ${activeTags.length > 0 ? '<span class="ggg-tag-chip ggg-tag-clear" title="清除筛选"><i class="ggg-fa fa-solid fa-xmark"></i></span>' : ''}
     `;
 
-    container.querySelectorAll('.ggg-tag-chip:not(.ggg-tag-clear)').forEach(chip => {
-        chip.addEventListener('click', () => {
+    if (container.dataset.gggGalleryTagBound !== '1') {
+        container.dataset.gggGalleryTagBound = '1';
+        container.addEventListener('click', (e) => {
+            const clear = e.target.closest('.ggg-tag-clear');
+            if (clear) {
+                activeTags = [];
+                refreshGalleryGrid();
+                return;
+            }
+            const chip = e.target.closest('[data-tag]');
+            if (!chip) return;
             const tag = chip.dataset.tag;
             const idx = activeTags.indexOf(tag);
             if (idx >= 0) activeTags.splice(idx, 1);
             else activeTags.push(tag);
             refreshGalleryGrid();
         });
-    });
-
-    container.querySelector('.ggg-tag-clear')?.addEventListener('click', () => {
-        activeTags = [];
-        refreshGalleryGrid();
-    });
+    }
 }
 
 function refreshGalleryGrid() {
+    const renderSeq = ++galleryRenderSeq;
     const grid = document.getElementById('ggg-gallery-grid');
     const empty = document.getElementById('ggg-no-gallery');
     const countEl = document.getElementById('ggg-gallery-count');
@@ -522,7 +611,8 @@ function refreshGalleryGrid() {
         .map(({ img, origIndex }) => ({ img, origIndex: galleryImages.indexOf(img) }));
 
     if (sizeSort) {
-        Promise.all(sortedFiltered.map(({ img }) => preloadImageSize(img))).then(() => {
+        mapWithConcurrency(sortedFiltered, SIZE_PROBE_CONCURRENCY, ({ img }) => preloadImageSize(img)).then(() => {
+            if (renderSeq !== galleryRenderSeq) return;
             renderGridWithSizeGroups(grid, sortedFiltered);
         });
     } else {
@@ -533,6 +623,7 @@ function refreshGalleryGrid() {
 function renderGridFlat(grid, items) {
     grid.innerHTML = items.map(({ img, origIndex }) => buildGalleryItemHTML(img, origIndex)).join('');
     bindGalleryItemEvents(grid);
+    bindLazyBackgrounds(grid);
 }
 
 function renderGridWithSizeGroups(grid, items) {
@@ -550,6 +641,7 @@ function renderGridWithSizeGroups(grid, items) {
     }
     grid.innerHTML = html;
     bindGalleryItemEvents(grid);
+    bindLazyBackgrounds(grid);
 }
 
 function buildGalleryItemHTML(img, idx) {
@@ -559,7 +651,7 @@ function buildGalleryItemHTML(img, idx) {
         : '';
 
     return `
-        <div class="ggg-gallery-item ${editMode && isSelected ? 'selected' : ''}" style="background-image: url('${escapeAttr(img.url)}')" data-index="${idx}">
+        <div class="ggg-gallery-item ${editMode && isSelected ? 'selected' : ''}" data-bg="${escapeAttr(img.url)}" data-index="${idx}">
             ${editMode
                 ? `<div class="ggg-gallery-checkbox ${isSelected ? 'checked' : ''}"><i class="ggg-fa fa-solid ${isSelected ? 'fa-square-check' : 'fa-square'}"></i></div>`
                 : ''
@@ -575,24 +667,13 @@ function buildGalleryItemHTML(img, idx) {
 }
 
 function bindGalleryItemEvents(grid) {
-    // 编辑模式：点击图片切换选中
-    grid.querySelectorAll('.ggg-gallery-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            if (e.target.closest('.ggg-gallery-delete') || e.target.closest('.ggg-gallery-tag-btn')) return;
-            if (!editMode) return;
-            const idx = parseInt(item.dataset.index);
-            if (selectedIndices.has(idx)) selectedIndices.delete(idx);
-            else selectedIndices.add(idx);
-            updateMultiSelectCount();
-            refreshGalleryGrid();
-        });
-    });
-
-    // 删除（编辑模式下，单个删除仍弹确认）
-    grid.querySelectorAll('.ggg-gallery-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+    if (grid.dataset.gggGalleryBound === '1') return;
+    grid.dataset.gggGalleryBound = '1';
+    grid.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.ggg-gallery-delete');
+        if (deleteBtn) {
             e.stopPropagation();
-            const idx = parseInt(btn.dataset.index);
+            const idx = parseInt(deleteBtn.dataset.index);
             const img = galleryImages[idx];
             const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
             const confirmed = await callGenericPopup(`确定删除这张图片吗？`, POPUP_TYPE.CONFIRM);
@@ -617,16 +698,22 @@ function bindGalleryItemEvents(grid) {
             saveAllSettings();
             updateMultiSelectCount();
             refreshGalleryGrid();
-        });
-    });
-
-    // 标签管理按钮
-    grid.querySelectorAll('.ggg-gallery-tag-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+            return;
+        }
+        const tagBtn = e.target.closest('.ggg-gallery-tag-btn');
+        if (tagBtn) {
             e.stopPropagation();
-            const idx = parseInt(btn.dataset.index);
+            const idx = parseInt(tagBtn.dataset.index);
             await showTagPopup(idx);
-        });
+            return;
+        }
+        const item = e.target.closest('.ggg-gallery-item');
+        if (!item || !editMode) return;
+        const idx = parseInt(item.dataset.index);
+        if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+        else selectedIndices.add(idx);
+        updateMultiSelectCount();
+        refreshGalleryGrid();
     });
 }
 
@@ -918,12 +1005,12 @@ async function showBatchTagPopup(indices) {
 
 /**
  * @param {number[]} indices - 选中项的索引数组
- * @param {'gallery'|'avatar'} scope - 操作范围
+ * @param {'gallery'|'avatar'|'meme'} scope - 操作范围
  */
 async function showBatchDeleteGalleryTagPopup(indices, scope) {
-    const list   = scope === 'gallery' ? galleryImages : avatarImages;
-    const label  = scope === 'gallery' ? '图片' : '头像';
-    const settingsKey = scope === 'gallery' ? 'gallery' : 'avatars';
+    const list   = scope === 'gallery' ? galleryImages : scope === 'meme' ? memeImages : avatarImages;
+    const label  = scope === 'gallery' ? '图片' : scope === 'meme' ? '表情包' : '头像';
+    const settingsKey = scope === 'gallery' ? 'gallery' : scope === 'meme' ? 'memes' : 'avatars';
 
     // 收集已选项的所有标签
     const tagSet = new Set();
@@ -973,12 +1060,457 @@ async function showBatchDeleteGalleryTagPopup(indices, scope) {
     settings[settingsKey] = list;
     saveAllSettings();
     if (scope === 'gallery') refreshGalleryGrid();
+    else if (scope === 'meme') refreshMemeGrid();
     else refreshAvatarGrid();
     toastr.success(`已从 ${indices.length} 张${label}删除 ${toDeleteSet.size} 个标签`);
 }
 
 function escapeHtml(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 function escapeAttr(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#039;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ============================================================
+// 表情包库
+// ============================================================
+function getAllMemeTags() {
+    const tagSet = new Set();
+    memeImages.forEach(img => (img.tags || []).forEach(t => tagSet.add(t)));
+    return [...tagSet].sort((a, b) => a.localeCompare(b, 'zh'));
+}
+
+function getFilteredMemes() {
+    const results = [];
+    memeImages.forEach((img, idx) => {
+        if (memeActiveTags.length > 0 && !memeActiveTags.some(t => (img.tags || []).includes(t))) return;
+        results.push({ img, origIndex: idx });
+    });
+    return results.sort((a, b) => {
+        const at = ((a.img.tags || []).slice().sort())[0] || '';
+        const bt = ((b.img.tags || []).slice().sort())[0] || '';
+        if (at && !bt) return -1;
+        if (!at && bt) return 1;
+        const tc = at.localeCompare(bt, 'zh');
+        if (tc) return tc;
+        return (a.img.timestamp || 0) - (b.img.timestamp || 0);
+    });
+}
+
+function updateMemeEditCount() {
+    const el = document.getElementById('ggg-meme-edit-count');
+    if (el) el.textContent = `已选 ${memeSelectedIndices.size} 张`;
+}
+
+function initMemeEvents() {
+    document.getElementById('ggg-btn-upload-meme')?.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            let count = 0;
+            for (const file of files) {
+                try { if (await uploadMeme(file)) count++; }
+                catch (err) { console.error('[ggg] 表情包上传失败:', err); toastr.error(`上传失败: ${file.name}`); }
+            }
+            saveAllSettings();
+            refreshMemeGrid();
+            if (count > 0) toastr.success(`已上传 ${count} 张表情包`);
+        });
+        input.click();
+    });
+
+    document.getElementById('ggg-btn-edit-meme')?.addEventListener('click', () => {
+        memeEditMode = !memeEditMode;
+        memeSelectedIndices.clear();
+        document.getElementById('ggg-btn-edit-meme')?.classList.toggle('active', memeEditMode);
+        const bar = document.getElementById('ggg-meme-edit-bar');
+        if (bar) bar.style.display = memeEditMode ? 'flex' : 'none';
+        refreshMemeGrid();
+    });
+    document.getElementById('ggg-meme-btn-select-all')?.addEventListener('click', () => {
+        getFilteredMemes().forEach(({ origIndex }) => memeSelectedIndices.add(origIndex));
+        updateMemeEditCount();
+        refreshMemeGrid();
+    });
+    document.getElementById('ggg-meme-btn-deselect')?.addEventListener('click', () => {
+        memeSelectedIndices.clear();
+        updateMemeEditCount();
+        refreshMemeGrid();
+    });
+    document.getElementById('ggg-meme-btn-batch-tag')?.addEventListener('click', async () => {
+        if (memeSelectedIndices.size === 0) { toastr.info('请先选择表情包'); return; }
+        await showBatchMemeTagPopup([...memeSelectedIndices]);
+    });
+    document.getElementById('ggg-meme-btn-batch-del-tag')?.addEventListener('click', async () => {
+        if (memeSelectedIndices.size === 0) { toastr.info('请先选择表情包'); return; }
+        await showBatchDeleteGalleryTagPopup([...memeSelectedIndices], 'meme');
+    });
+    document.getElementById('ggg-meme-btn-batch-delete')?.addEventListener('click', async () => {
+        if (memeSelectedIndices.size === 0) { toastr.info('请先选择表情包'); return; }
+        const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+        const ok = await callGenericPopup(`确定删除选中的 ${memeSelectedIndices.size} 张表情包吗？`, POPUP_TYPE.CONFIRM);
+        if (!ok) return;
+        const idxArr = [...memeSelectedIndices].sort((a, b) => b - a);
+        for (const idx of idxArr) {
+            await deleteUploadedFile(memeImages[idx]);
+            memeImages.splice(idx, 1);
+        }
+        const settings = getSettings();
+        settings.memes = memeImages;
+        saveAllSettings();
+        memeSelectedIndices.clear();
+        updateMemeEditCount();
+        refreshMemeGrid();
+        toastr.success(`已删除 ${idxArr.length} 张表情包`);
+    });
+}
+
+async function askMemeName(fileName) {
+    const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+    const base = String(fileName || '').replace(/\.[^.]+$/, '');
+    const id = 'ggg-meme-name-input-' + Date.now();
+    let currentName = base;
+    const html = `
+        <div class="ggg-tag-popup">
+            <div class="ggg-tag-popup-title">表情包名称</div>
+            <div class="ggg-set-field">
+                <label>名称</label>
+                <input id="${id}" class="text_pole" value="${escapeAttr(base)}" placeholder="写入 PP 表情包消息时使用的名字">
+            </div>
+        </div>`;
+    setTimeout(() => {
+        const input = document.getElementById(id);
+        const syncName = () => { currentName = String(input?.value || '').trim(); };
+        input?.focus();
+        input?.select();
+        ['input', 'change', 'blur'].forEach(ev => input?.addEventListener(ev, syncName));
+        ['keydown','keyup','keypress','input','change'].forEach(ev => input?.addEventListener(ev, e => e.stopPropagation()));
+    }, 80);
+    const ok = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '上传', cancelButton: '取消' });
+    if (!ok) return '';
+    return currentName || base;
+}
+
+async function askMemeRename(currentValue) {
+    const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+    const base = String(currentValue || '').trim();
+    const id = 'ggg-meme-rename-input-' + Date.now();
+    let currentName = base;
+    const html = `
+        <div class="ggg-tag-popup">
+            <div class="ggg-tag-popup-title">修改表情包名称</div>
+            <div class="ggg-set-field">
+                <label>名称</label>
+                <input id="${id}" class="text_pole" value="${escapeAttr(base)}" placeholder="写入 PP 表情包消息时使用的名字">
+            </div>
+        </div>`;
+    setTimeout(() => {
+        const input = document.getElementById(id);
+        const syncName = () => { currentName = String(input?.value || '').trim(); };
+        input?.focus();
+        input?.select();
+        ['input', 'change', 'blur'].forEach(ev => input?.addEventListener(ev, syncName));
+        ['keydown','keyup','keypress','input','change'].forEach(ev => input?.addEventListener(ev, e => e.stopPropagation()));
+    }, 80);
+    const ok = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '保存', cancelButton: '取消' });
+    if (!ok) return '';
+    return currentName || base;
+}
+
+async function uploadMeme(file) {
+    const name = await askMemeName(file.name);
+    if (!name) return null;
+    const prefix = `ggg_meme_${Date.now()}_`;
+    const filename = prefix + file.name;
+    const formData = new FormData();
+    formData.append('avatar', file, filename);
+    const headers = {};
+    const origH = SillyTavern.getContext().getRequestHeaders();
+    for (const [k, v] of Object.entries(origH)) {
+        if (k.toLowerCase() !== 'content-type') headers[k] = v;
+    }
+    const resp = await fetch('/api/backgrounds/upload', { method: 'POST', headers, body: formData });
+    if (!resp.ok) throw new Error(`上传失败: ${resp.status}`);
+    const item = { name, url: `/backgrounds/${filename}`, filename, timestamp: Date.now(), tags: [] };
+    memeImages.push(item);
+    const settings = getSettings();
+    settings.memes = memeImages;
+    return item;
+}
+
+async function deleteUploadedFile(img) {
+    if (!img?.filename) return;
+    try {
+        await fetch('/api/backgrounds/delete', {
+            method: 'POST',
+            headers: SillyTavern.getContext().getRequestHeaders(),
+            body: JSON.stringify({ bg: img.filename }),
+        });
+    } catch (err) { console.warn('[ggg] 删除服务器文件失败:', err); }
+}
+
+function renderMemeTagFilter() {
+    const container = document.getElementById('ggg-meme-tag-filter');
+    if (!container) return;
+    const allTags = getAllMemeTags();
+    if (allTags.length === 0) { container.innerHTML = ''; container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+    container.innerHTML = `
+        <span class="ggg-tag-filter-label"><i class="ggg-fa fa-solid fa-filter"></i></span>
+        ${allTags.map(tag => `<span class="ggg-tag-chip ${memeActiveTags.includes(tag) ? 'active' : ''}" data-meme-tag="${escapeAttr(tag)}">${escapeHtml(tag)}</span>`).join('')}
+        ${memeActiveTags.length > 0 ? '<span class="ggg-tag-chip ggg-tag-clear" data-meme-clear><i class="ggg-fa fa-solid fa-xmark"></i></span>' : ''}`;
+    if (container.dataset.gggMemeTagBound !== '1') {
+        container.dataset.gggMemeTagBound = '1';
+        container.addEventListener('click', (e) => {
+            if (e.target.closest('[data-meme-clear]')) {
+                memeActiveTags = [];
+                refreshMemeGrid();
+                return;
+            }
+            const chip = e.target.closest('[data-meme-tag]');
+            if (!chip) return;
+            const tag = chip.dataset.memeTag;
+            const idx = memeActiveTags.indexOf(tag);
+            if (idx >= 0) memeActiveTags.splice(idx, 1);
+            else memeActiveTags.push(tag);
+            refreshMemeGrid();
+        });
+    }
+}
+
+function refreshMemeGrid() {
+    const grid = document.getElementById('ggg-meme-grid');
+    const empty = document.getElementById('ggg-no-meme');
+    const countEl = document.getElementById('ggg-meme-count');
+    if (!grid) return;
+    renderMemeTagFilter();
+    const filtered = getFilteredMemes();
+    if (countEl) countEl.textContent = `${memeImages.length} 张表情包${memeActiveTags.length ? ` (筛选: ${filtered.length})` : ''}`;
+    if (memeImages.length === 0) {
+        grid.innerHTML = '';
+        grid.style.display = 'none';
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    grid.style.display = 'grid';
+    grid.innerHTML = filtered.map(({ img, origIndex }) => buildMemeItemHTML(img, origIndex)).join('');
+    bindMemeItemEvents(grid);
+    bindLazyBackgrounds(grid);
+    updateMemeEditCount();
+}
+
+function buildMemeItemHTML(img, idx) {
+    const isSelected = memeSelectedIndices.has(idx);
+    const tags = (img.tags || []).map(t => `<span class="ggg-gallery-tag-mini">${escapeHtml(t)}</span>`).join('');
+    return `
+        <div class="ggg-gallery-item ggg-meme-item ${memeEditMode && isSelected ? 'selected' : ''}" data-bg="${escapeAttr(img.url)}" data-meme-index="${idx}">
+            ${memeEditMode ? `<div class="ggg-gallery-checkbox ${isSelected ? 'checked' : ''}"><i class="ggg-fa fa-solid ${isSelected ? 'fa-square-check' : 'fa-square'}"></i></div>` : ''}
+            ${memeEditMode ? `<button class="ggg-gallery-delete ggg-edit-only" data-meme-index="${idx}" title="删除"><i class="ggg-fa fa-solid fa-xmark"></i></button>` : ''}
+            ${memeEditMode ? `<button class="ggg-meme-rename-btn ggg-edit-only" data-meme-index="${idx}" title="修改名称"><i class="ggg-fa fa-solid fa-pen"></i></button>` : ''}
+            <button class="ggg-gallery-tag-btn" data-meme-index="${idx}" title="管理标签"><i class="ggg-fa fa-solid fa-tag"></i></button>
+            <div class="ggg-meme-name">${escapeHtml(img.name)}</div>
+            ${tags ? `<div class="ggg-gallery-item-tags">${tags}</div>` : ''}
+        </div>`;
+}
+
+function bindMemeItemEvents(grid) {
+    if (grid.dataset.gggMemeBound === '1') return;
+    grid.dataset.gggMemeBound = '1';
+    grid.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.ggg-gallery-delete');
+        if (deleteBtn) {
+            e.stopPropagation();
+            const idx = parseInt(deleteBtn.dataset.memeIndex);
+            const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+            const ok = await callGenericPopup('确定删除这张表情包吗？', POPUP_TYPE.CONFIRM);
+            if (!ok) return;
+            await deleteUploadedFile(memeImages[idx]);
+            memeImages.splice(idx, 1);
+            memeSelectedIndices.delete(idx);
+            const next = new Set();
+            memeSelectedIndices.forEach(i => next.add(i > idx ? i - 1 : i));
+            memeSelectedIndices = next;
+            const settings = getSettings();
+            settings.memes = memeImages;
+            saveAllSettings();
+            refreshMemeGrid();
+            return;
+        }
+        const tagBtn = e.target.closest('.ggg-gallery-tag-btn');
+        if (tagBtn) {
+            e.stopPropagation();
+            await showMemeTagPopup(parseInt(tagBtn.dataset.memeIndex));
+            return;
+        }
+        const renameBtn = e.target.closest('.ggg-meme-rename-btn');
+        if (renameBtn) {
+            e.stopPropagation();
+            const idx = parseInt(renameBtn.dataset.memeIndex);
+            const img = memeImages[idx];
+            if (!img) return;
+            const next = await askMemeRename(img.name || '');
+            if (!next) return;
+            img.name = next;
+            const settings = getSettings();
+            settings.memes = memeImages;
+            saveAllSettings();
+            refreshMemeGrid();
+            toastr.success('已修改表情包名称');
+            return;
+        }
+        const item = e.target.closest('.ggg-meme-item');
+        if (!item || !memeEditMode) return;
+        const idx = parseInt(item.dataset.memeIndex);
+        if (memeSelectedIndices.has(idx)) memeSelectedIndices.delete(idx);
+        else memeSelectedIndices.add(idx);
+        updateMemeEditCount();
+        refreshMemeGrid();
+    });
+}
+
+async function showMemeTagPopup(imgIndex) {
+    const img = memeImages[imgIndex];
+    if (!img) return;
+    const allTags = getAllMemeTags();
+    let tempTags = [...(img.tags || [])];
+    const html = `
+        <div class="ggg-tag-popup">
+            <div class="ggg-tag-popup-title">管理标签 - ${escapeHtml(img.name)}</div>
+            <div class="ggg-tag-popup-preview" style="background-image: url('${escapeAttr(img.url)}')"></div>
+            <div class="ggg-tag-popup-section">
+                <div class="ggg-tag-popup-subtitle">已有标签（点击勾选/取消）</div>
+                <div class="ggg-tag-popup-tags" id="ggg-meme-tag-existing">
+                    ${allTags.length ? allTags.map(tag => `<label class="ggg-tag-popup-chip"><input type="checkbox" value="${escapeAttr(tag)}" ${tempTags.includes(tag) ? 'checked' : ''}><span>${escapeHtml(tag)}</span></label>`).join('') : '<span style="opacity:0.5;font-size:0.85em;">暂无标签</span>'}
+                </div>
+            </div>
+            <div class="ggg-tag-popup-section">
+                <div class="ggg-tag-popup-subtitle">添加新标签</div>
+                <div class="ggg-tag-popup-new-row">
+                    <input type="text" id="ggg-meme-tag-new-input" class="text_pole" placeholder="输入新标签名...">
+                    <div id="ggg-meme-tag-add-btn" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-plus"></i></div>
+                </div>
+            </div>
+            <div class="ggg-tag-popup-section">
+                <div class="ggg-tag-popup-subtitle">当前标签</div>
+                <div id="ggg-meme-tag-current" class="ggg-tag-popup-current-tags"></div>
+            </div>
+        </div>`;
+    const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+    setTimeout(() => {
+        const currentTagsEl = document.getElementById('ggg-meme-tag-current');
+        const renderCurrent = () => {
+            if (!currentTagsEl) return;
+            currentTagsEl.innerHTML = tempTags.length
+                ? tempTags.map(t => `<span class="ggg-tag-current-chip">${escapeHtml(t)} <i class="ggg-fa fa-solid fa-xmark ggg-meme-tag-remove" data-tag="${escapeAttr(t)}"></i></span>`).join('')
+                : '<span style="opacity:0.5;font-size:0.85em;">无标签</span>';
+            currentTagsEl.querySelectorAll('.ggg-meme-tag-remove').forEach(rm => {
+                rm.addEventListener('click', () => {
+                    tempTags = tempTags.filter(t => t !== rm.dataset.tag);
+                    document.querySelectorAll('#ggg-meme-tag-existing input[type="checkbox"]').forEach(cb => { if (cb.value === rm.dataset.tag) cb.checked = false; });
+                    renderCurrent();
+                });
+            });
+        };
+        renderCurrent();
+        document.querySelectorAll('#ggg-meme-tag-existing input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (cb.checked && !tempTags.includes(cb.value)) tempTags.push(cb.value);
+                if (!cb.checked) tempTags = tempTags.filter(t => t !== cb.value);
+                renderCurrent();
+            });
+        });
+        const input = document.getElementById('ggg-meme-tag-new-input');
+        const add = () => {
+            const val = input?.value?.trim();
+            if (!val) return;
+            if (!tempTags.includes(val)) tempTags.push(val);
+            input.value = '';
+            renderCurrent();
+        };
+        document.getElementById('ggg-meme-tag-add-btn')?.addEventListener('click', add);
+        input?.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); add(); } });
+        ['keyup','keypress','input'].forEach(ev => input?.addEventListener(ev, e => e.stopPropagation()));
+    }, 100);
+    const result = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '保存', cancelButton: '取消', allowVerticalScrolling: true });
+    if (!result) return;
+    img.tags = tempTags;
+    const settings = getSettings();
+    settings.memes = memeImages;
+    saveAllSettings();
+    refreshMemeGrid();
+    toastr.success('标签已更新');
+}
+
+async function showBatchMemeTagPopup(indices) {
+    const allTags = getAllMemeTags();
+    const newTags = [];
+    const checkedTagsSet = new Set();
+    const html = `
+        <div class="ggg-tag-popup">
+            <div class="ggg-tag-popup-title">批量管理标签（${indices.length} 张表情包）</div>
+            <div class="ggg-tag-popup-section">
+                <div class="ggg-tag-popup-subtitle">选择要添加的标签</div>
+                <div class="ggg-tag-popup-tags" id="ggg-meme-batch-existing">
+                    ${allTags.length ? allTags.map(tag => `<label class="ggg-tag-popup-chip"><input type="checkbox" value="${escapeAttr(tag)}"><span>${escapeHtml(tag)}</span></label>`).join('') : '<span style="opacity:0.5;font-size:0.85em;">暂无标签</span>'}
+                </div>
+            </div>
+            <div class="ggg-tag-popup-section">
+                <div class="ggg-tag-popup-subtitle">添加新标签</div>
+                <div class="ggg-tag-popup-new-row">
+                    <input type="text" id="ggg-meme-batch-input" class="text_pole" placeholder="输入新标签名...">
+                    <div id="ggg-meme-batch-add-btn" class="menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-plus"></i></div>
+                </div>
+                <div id="ggg-meme-batch-list" class="ggg-tag-popup-current-tags" style="margin-top:6px;"></div>
+            </div>
+        </div>`;
+    const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
+    setTimeout(() => {
+        const listEl = document.getElementById('ggg-meme-batch-list');
+        const input = document.getElementById('ggg-meme-batch-input');
+        const render = () => {
+            if (!listEl) return;
+            listEl.innerHTML = newTags.map(t => `<span class="ggg-tag-current-chip">${escapeHtml(t)} <i class="ggg-fa fa-solid fa-xmark ggg-meme-batch-rm" data-tag="${escapeAttr(t)}"></i></span>`).join('');
+            listEl.querySelectorAll('.ggg-meme-batch-rm').forEach(rm => rm.addEventListener('click', () => {
+                const i = newTags.indexOf(rm.dataset.tag);
+                if (i >= 0) newTags.splice(i, 1);
+                render();
+            }));
+        };
+        const add = () => {
+            const val = input?.value?.trim();
+            if (!val || newTags.includes(val)) return;
+            newTags.push(val);
+            input.value = '';
+            render();
+        };
+        document.querySelectorAll('#ggg-meme-batch-existing input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (cb.checked) checkedTagsSet.add(cb.value);
+                else checkedTagsSet.delete(cb.value);
+            });
+        });
+        document.getElementById('ggg-meme-batch-add-btn')?.addEventListener('click', add);
+        input?.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); add(); } });
+        ['keyup','keypress','input'].forEach(ev => input?.addEventListener(ev, e => e.stopPropagation()));
+    }, 100);
+    const result = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '添加', cancelButton: '取消', allowVerticalScrolling: true });
+    if (!result) return;
+    const toAdd = [...checkedTagsSet, ...newTags];
+    if (toAdd.length === 0) { toastr.info('没有选择标签'); return; }
+    indices.forEach(idx => {
+        const img = memeImages[idx];
+        if (!img) return;
+        if (!img.tags) img.tags = [];
+        toAdd.forEach(t => { if (!img.tags.includes(t)) img.tags.push(t); });
+    });
+    const settings = getSettings();
+    settings.memes = memeImages;
+    saveAllSettings();
+    refreshMemeGrid();
+    toastr.success(`已为 ${indices.length} 张表情包添加标签`);
+}
 
 // ============================================================
 // 头像库
@@ -1034,7 +1566,7 @@ function refreshAvatarGrid() {
             : '';
 
         html += `<div class="ggg-avatar-item ${avatarEditMode && isSelected ? 'avatar-selected' : ''}" data-avatar-index="${realIdx}">
-            <div class="ggg-avatar-thumb" style="background-image: url('${escapeAttr(img.url)}');"></div>
+            <div class="ggg-avatar-thumb" data-bg="${escapeAttr(img.url)}"></div>
             ${avatarEditMode
                 ? `<div class="ggg-avatar-checkbox ${isSelected ? 'checked' : ''}" data-avatar-index="${realIdx}">
                     <i class="ggg-fa fa-solid ${isSelected ? 'fa-square-check' : 'fa-square'}"></i>
@@ -1054,25 +1586,20 @@ function refreshAvatarGrid() {
         </div>`;
     });
     grid.innerHTML = html;
+    bindLazyBackgrounds(grid);
+    bindAvatarGridEvents(grid);
+    refreshAvatarTagFilter();
+}
 
-    // 编辑模式下：点击复选框/图片切换选中
-    if (avatarEditMode) {
-        grid.querySelectorAll('.ggg-avatar-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (e.target.closest('.ggg-avatar-edit-delete-btn')) return;
-                const idx = parseInt(item.dataset.avatarIndex);
-                if (avatarSelectedIndices.has(idx)) avatarSelectedIndices.delete(idx);
-                else avatarSelectedIndices.add(idx);
-                updateAvatarEditCount();
-                refreshAvatarGrid();
-            });
-        });
-
-        // 编辑模式下：单个删除需弹确认
-        grid.querySelectorAll('.ggg-avatar-edit-delete-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+function bindAvatarGridEvents(grid) {
+    if (grid.dataset.gggAvatarBound === '1') return;
+    grid.dataset.gggAvatarBound = '1';
+    grid.addEventListener('click', async (e) => {
+        if (avatarEditMode) {
+            const editDeleteBtn = e.target.closest('.ggg-avatar-edit-delete-btn');
+            if (editDeleteBtn) {
                 e.stopPropagation();
-                const idx = parseInt(btn.dataset.avatarIndex);
+                const idx = parseInt(editDeleteBtn.dataset.avatarIndex);
                 const img = avatarImages[idx];
                 const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
                 const ok = await callGenericPopup('确定删除这张头像吗？', POPUP_TYPE.CONFIRM);
@@ -1095,15 +1622,23 @@ function refreshAvatarGrid() {
                 updateAvatarEditCount();
                 refreshAvatarGrid();
                 toastr.success('已删除头像');
-            });
-        });
-    }
-
-    // 普通模式：删除
-    grid.querySelectorAll('.ggg-avatar-delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+                return;
+            }
+            const item = e.target.closest('.ggg-avatar-item');
+            if (item) {
+                if (e.target.closest('.ggg-avatar-edit-delete-btn')) return;
+                const idx = parseInt(item.dataset.avatarIndex);
+                if (avatarSelectedIndices.has(idx)) avatarSelectedIndices.delete(idx);
+                else avatarSelectedIndices.add(idx);
+                updateAvatarEditCount();
+                refreshAvatarGrid();
+            }
+            return;
+        }
+        const deleteBtn = e.target.closest('.ggg-avatar-delete-btn');
+        if (deleteBtn) {
             e.stopPropagation();
-            const idx = parseInt(btn.dataset.avatarIndex);
+            const idx = parseInt(deleteBtn.dataset.avatarIndex);
             const img = avatarImages[idx];
             const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
             const confirmed = await callGenericPopup(`确定删除头像 "${img.name}" 吗？`, POPUP_TYPE.CONFIRM);
@@ -1120,19 +1655,15 @@ function refreshAvatarGrid() {
             saveAllSettings();
             refreshAvatarGrid();
             toastr.success(`已删除头像: ${img.name}`);
-        });
-    });
-
-    // 普通模式：标签
-    grid.querySelectorAll('.ggg-avatar-tag-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+            return;
+        }
+        const tagBtn = e.target.closest('.ggg-avatar-tag-btn');
+        if (tagBtn) {
             e.stopPropagation();
-            const idx = parseInt(btn.dataset.avatarIndex);
+            const idx = parseInt(tagBtn.dataset.avatarIndex);
             await showAvatarTagPopup(idx);
-        });
+        }
     });
-
-    refreshAvatarTagFilter();
 }
 
 function refreshAvatarTagFilter() {
@@ -1148,15 +1679,18 @@ function refreshAvatarTagFilter() {
     });
     html += '</div>';
     container.innerHTML = html;
-    container.querySelectorAll('.ggg-tag-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
+    if (container.dataset.gggAvatarTagBound !== '1') {
+        container.dataset.gggAvatarTagBound = '1';
+        container.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-avatar-tag]');
+            if (!chip) return;
             const tag = chip.dataset.avatarTag;
             const pos = avatarActiveTags.indexOf(tag);
             if (pos >= 0) avatarActiveTags.splice(pos, 1);
             else avatarActiveTags.push(tag);
             refreshAvatarGrid();
         });
-    });
+    }
 }
 
 function initAvatarEvents() {
@@ -1399,20 +1933,41 @@ function initAvatarIntercept() {
         '#group_avatar_button',
     ];
 
-    interceptTargets.forEach(selector => {
-        const el = document.querySelector(selector);
-        if (!el) return;
-        el.addEventListener('click', (e) => {
-            if (avatarBypassing) return;
-            if (avatarImages.length === 0) return;
-            e.preventDefault();
-            e.stopPropagation();
-            showAvatarPicker(el);
-        }, true);
-    });
+    if (avatarInterceptInitialized) return;
+    avatarInterceptInitialized = true;
+
+    document.addEventListener('click', (e) => {
+        const target = e.target?.closest?.(interceptTargets.join(','));
+        if (!target) return;
+        if (avatarBypassing) return;
+        if (avatarImages.length === 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        showAvatarPicker(target);
+    }, true);
 }
 
-async function showAvatarPicker(targetInput) {
+function resolveAvatarFileInput(target) {
+    if (target?.matches?.('input[type="file"]')) return target;
+
+    const mappedInput = {
+        add_avatar_button: '#avatar_upload_file',
+        avatar_upload_file: '#avatar_upload_file',
+        character_replace_file: '#character_replace_file',
+        group_avatar_button: '#group_avatar_button',
+    }[target?.id];
+
+    const input = mappedInput ? document.querySelector(mappedInput) : null;
+    if (input?.matches?.('input[type="file"]')) return input;
+
+    const nearbyInput = target?.querySelector?.('input[type="file"]')
+        || target?.parentElement?.querySelector?.('input[type="file"]');
+    if (nearbyInput) return nearbyInput;
+
+    return target;
+}
+
+async function showAvatarPicker(target) {
     const { callGenericPopup, POPUP_TYPE } = SillyTavern.getContext();
 
     const allAvatarTags = new Set();
@@ -1482,18 +2037,22 @@ async function showAvatarPicker(targetInput) {
                     ? `<div class="ggg-avatar-picker-tags">${img.tags.map(t => `<span class="ggg-avatar-picker-tag">${escapeHtml(t)}</span>`).join('')}</div>`
                     : '';
                 gridHTML += `<div class="ggg-avatar-picker-item ${realIdx === pickedIndex ? 'selected' : ''}" data-avatar-pick-index="${realIdx}">
-                    <div class="ggg-avatar-picker-thumb" style="background-image: url('${escapeAttr(img.url)}');"></div>
+                    <div class="ggg-avatar-picker-thumb" data-bg="${escapeAttr(img.url)}"></div>
                     ${pickerTagsHtml}
                 </div>`;
             });
             gridEl.innerHTML = gridHTML;
-            gridEl.querySelectorAll('.ggg-avatar-picker-item').forEach(item => {
-                item.addEventListener('click', () => {
+            bindLazyBackgrounds(gridEl);
+            if (gridEl.dataset.gggAvatarPickerBound !== '1') {
+                gridEl.dataset.gggAvatarPickerBound = '1';
+                gridEl.addEventListener('click', (e) => {
+                    const item = e.target.closest('.ggg-avatar-picker-item');
+                    if (!item) return;
                     gridEl.querySelectorAll('.ggg-avatar-picker-item').forEach(el => el.classList.remove('selected'));
                     item.classList.add('selected');
                     pickedIndex = parseInt(item.dataset.avatarPickIndex);
                 });
-            });
+            }
         }
 
         renderPickerTagFilter();
@@ -1522,6 +2081,7 @@ async function showAvatarPicker(targetInput) {
             const file = new File([blob], avatar.filename || avatar.name, { type: blob.type });
             const dt = new DataTransfer();
             dt.items.add(file);
+            const targetInput = resolveAvatarFileInput(target);
             targetInput.files = dt.files;
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
         } catch (err) {
@@ -1531,6 +2091,7 @@ async function showAvatarPicker(targetInput) {
     } else if (!result && !closedByX) {
         avatarBypassing = true;
         setTimeout(() => {
+            const targetInput = resolveAvatarFileInput(target);
             targetInput.click();
             setTimeout(() => { avatarBypassing = false; }, 500);
         }, 0);

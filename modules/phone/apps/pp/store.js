@@ -160,70 +160,262 @@ export async function readStAllPersonasAsync() {
     }
 }
 
+/**
+ * v0.2.47：把"基于 ST 当前 persona + personas[avatar] PP 资料"重建 me 的逻辑抽出来
+ *   每次 createPPStore 都跑、外部 PERSONA_CHANGED 事件也跑（通过全局 hook）
+ *   规则：PP 资料卡里的 nickname/signature/avatarUrl 优先；其次 ST persona 显示名/头像
+ */
+function getCtx() {
+    try { return (typeof SillyTavern !== 'undefined') ? SillyTavern.getContext?.() : null; } catch { return null; }
+}
+
+function personaKeyVariants(avatarKey) {
+    const key = ensurePng(avatarKey || getStCurrentAvatarKey() || '');
+    const raw = String(avatarKey || getStCurrentAvatarKey() || '');
+    const noExt = key.replace(/\.png$/i, '');
+    return Array.from(new Set([key, raw, noExt].filter(Boolean)));
+}
+
+function readPersonaData(state, avatarKey) {
+    const personas = state.personas || {};
+    for (const key of personaKeyVariants(avatarKey)) {
+        if (personas[key]) return personas[key];
+    }
+    if (personas.__none__) return personas.__none__;
+    return {};
+}
+
+function currentPersonaStoreKey(me = {}) {
+    const key = ensurePng(me.avatarKey || getStCurrentAvatarKey() || '');
+    return key || '__none__';
+}
+
+export function persistCurrentMeProfile(me = {}) {
+    if (!settings.phone) settings.phone = {};
+    if (!settings.phone.pp) settings.phone.pp = {};
+    if (!settings.phone.pp.me) settings.phone.pp.me = {};
+    if (!settings.phone.pp.personas) settings.phone.pp.personas = {};
+
+    const key = currentPersonaStoreKey(me);
+    const profile = {
+        ...(settings.phone.pp.personas[key] || {}),
+        nickname: String(me.nickname || '').trim(),
+        signature: String(me.signature || '').trim(),
+        avatarUrl: me.avatar || '',
+    };
+    const nextMe = { ...me, avatarKey: key === '__none__' ? '' : key };
+
+    const liveState = (typeof window !== 'undefined' && window.__ggg_phone_pp_store?.state) || null;
+    if (liveState) {
+        if (!liveState.personas) liveState.personas = {};
+        if (!liveState.me) liveState.me = {};
+        liveState.personas[key] = { ...(liveState.personas[key] || {}), ...profile };
+        Object.assign(liveState.me, nextMe);
+    }
+
+    settings.phone.pp.personas[key] = {
+        ...(settings.phone.pp.personas[key] || {}),
+        ...(liveState?.personas?.[key] || profile),
+    };
+    settings.phone.pp.me = {
+        ...settings.phone.pp.me,
+        ...(liveState?.me || nextMe),
+    };
+    saveAllSettings();
+}
+
+function normalizeWallet(wallet) {
+    const target = wallet || { balance: 3.0, history: [] };
+    const n = Number(target.balance);
+    target.balance = Number.isFinite(n) ? Math.round(n * 100) / 100 : 3.0;
+    if (!Array.isArray(target.history)) target.history = [];
+    return target;
+}
+
+function createDefaultPPState() {
+    return {
+        me: {},
+        friends: [],
+        groups: [],
+        chats: [],
+        personas: {},
+        wallet: { balance: 3.0, history: [] },
+        vip: { tier: 'none', expireAt: 0 },
+        decorations: { theme: 'default', bubble: 'default', font: 'default' },
+        favorites: [],
+        appearanceByPersona: {},
+        contactExtByKey: {},
+    };
+}
+
+function ensurePPStateShape(pp) {
+    const defaults = createDefaultPPState();
+    const target = (pp && typeof pp === 'object') ? pp : {};
+
+    if (!target.me || typeof target.me !== 'object') target.me = { ...defaults.me };
+    if (!target.personas || typeof target.personas !== 'object') target.personas = { ...defaults.personas };
+    if (!target.vip || typeof target.vip !== 'object') target.vip = { ...defaults.vip };
+    if (!target.decorations || typeof target.decorations !== 'object') target.decorations = { ...defaults.decorations };
+    if (!target.appearanceByPersona || typeof target.appearanceByPersona !== 'object') target.appearanceByPersona = { ...defaults.appearanceByPersona };
+    if (!target.contactExtByKey || typeof target.contactExtByKey !== 'object') target.contactExtByKey = { ...defaults.contactExtByKey };
+
+    if (!Array.isArray(target.friends)) target.friends = [];
+    if (!Array.isArray(target.groups)) target.groups = [];
+    if (!Array.isArray(target.chats)) target.chats = [];
+    if (!Array.isArray(target.favorites)) target.favorites = [];
+
+    target.wallet = normalizeWallet(target.wallet || defaults.wallet);
+    target.vip.tier = target.vip.tier || defaults.vip.tier;
+    target.vip.expireAt = Number(target.vip.expireAt) || 0;
+    target.decorations = { ...defaults.decorations, ...target.decorations };
+
+    return target;
+}
+
+function readChatContacts() {
+    const ctx = getCtx();
+    const friends = ctx?.chatMetadata?.gggPPContacts?.friends;
+    return Array.isArray(friends) ? friends.map(f => ({ ...f })) : [];
+}
+
+function readPersonaFriends(ppData, avatarKey) {
+    if (Array.isArray(ppData?.friends)) {
+        return ppData.friends
+            .filter(f => f && String(f.nickname || '').trim())
+            .map((f, index) => ({
+                id: f.id || `persona_${avatarKey || 'current'}_${index}_${String(f.nickname || '').trim()}`,
+                nickname: String(f.nickname || '').trim(),
+                avatar: f.avatar || f.avatarUrl || '',
+                signature: f.signature || '',
+                group: 'friend',
+                remark: f.remark || '',
+                fromPersona: avatarKey || '',
+                source: 'persona-profile',
+            }));
+    }
+    return String(ppData?.friendsText || '')
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+            const parts = line.split('|').map(s => s.trim());
+            const nickname = parts[0] || `好友 ${index + 1}`;
+            return {
+                id: `persona_${avatarKey || 'current'}_${index}_${nickname}`,
+                nickname,
+                avatar: parts[1] || '',
+                group: 'friend',
+                remark: parts[2] || '',
+                fromPersona: avatarKey || '',
+                source: 'persona-profile',
+            };
+        });
+}
+
+function readPersonaProfileFriends(state) {
+    const avatarKey = state?.me?.avatarKey || readStCurrentPersona()?.avatarKey || '';
+    const ppData = readPersonaData(state, avatarKey);
+    return readPersonaFriends(ppData, avatarKey);
+}
+
+function mergeFriends(...lists) {
+    const map = new Map();
+    for (const list of lists) {
+        for (const f of (Array.isArray(list) ? list : [])) {
+            if (!f || !f.id) continue;
+            const key = f.fromCharacter ? `char:${f.fromCharacter}` : (f.id || f.nickname || f.name);
+            map.set(key, { ...(map.get(key) || {}), ...f });
+        }
+    }
+    return Array.from(map.values());
+}
+
+function rebuildContacts(state, chatContacts = readChatContacts()) {
+    state.friends = mergeFriends(readPersonaProfileFriends(state), chatContacts);
+}
+
+function rebuildMeFromCurrentPersona(state) {
+    const persona = readStCurrentPersona();
+    const avatarKey = persona?.avatarKey || '';
+    const personas = (state.personas = state.personas || {});
+    const ppData = readPersonaData(state, avatarKey);
+
+    const me = state.me || {};
+    // v0.2.52：账号切换时（avatarKey 变了）不再回退到旧 me 的字段，
+    //          否则切到新 persona 时还会显示老账号的昵称/头像
+    const switching = !!me.avatarKey && me.avatarKey !== avatarKey;
+    if (!switching) {
+        const profileKey = currentPersonaStoreKey({ avatarKey });
+        const data = personas[profileKey] || ppData || {};
+        if (!data.nickname && me.nickname && me.nickname !== persona?.name) data.nickname = me.nickname;
+        if (!data.signature && me.signature) data.signature = me.signature;
+        if (!data.avatarUrl && me.avatar && me.avatar !== persona?.avatarUrl) data.avatarUrl = me.avatar;
+        if (Object.keys(data).length) personas[profileKey] = data;
+    }
+    me.nickname = ppData.nickname || persona?.name || (switching ? 'User' : (me.nickname || 'User'));
+    me.avatar   = ppData.avatarUrl || (switching ? (persona?.avatarUrl || '') : (me.avatar || persona?.avatarUrl || ''));
+    me.signature = ppData.signature || (switching ? '这个人很懒，什么都没写' : (me.signature || '这个人很懒，什么都没写'));
+    delete me.ppId;
+    me.avatarKey = avatarKey;
+    state.me = me;
+}
+
 export function createPPStore(Vue) {
     const { reactive, watch } = Vue;
 
     if (!settings.phone) settings.phone = {};
-    if (!settings.phone.pp) {
-        // 首次创建时优先读酒馆当前 persona 作为默认
-        const persona = readStCurrentPersona();
-        settings.phone.pp = {
-            me: {
-                nickname: persona?.name || 'User',
-                signature: '这个人很懒，什么都没写',
-                ppId: '10086',
-                avatar: persona?.avatarUrl || '',
-                // 标记是否还在跟随酒馆 persona（用户手动改过昵称/头像后置 false）
-                fromStPersona: !!persona,
-            },
-            friends: [],   // [{ id, nickname, avatar, group, remark, ... }]
-            groups: [],    // [{ id, name, members: [...] }]
-            chats: [],     // [{ id, peerType:'friend'|'group', peerId, lastTs, unread, lastPreview }]
-            // 钱包 / 会员 / 装扮
-            wallet: { balance: 3.0, history: [] },
-            vip: { tier: 'none', expireAt: 0 },
-            decorations: { theme: 'default', bubble: 'default', font: 'default' },
-            favorites: [], // 收藏
-        };
-        saveAllSettings();
-    }
-
-    // v0.2.17：每次创建 store 时如果 me 还在跟随酒馆 persona，先用同步 fallback 即时填一次
-    //   下面再异步用 ST_API 覆盖（异步路径更准确，能拿到真正的 url 和昵称）
-    if (settings.phone.pp.me?.fromStPersona) {
-        const personaSync = readStCurrentPersona();
-        if (personaSync) {
-            settings.phone.pp.me.nickname = personaSync.name || settings.phone.pp.me.nickname;
-            settings.phone.pp.me.avatar = personaSync.avatarUrl || settings.phone.pp.me.avatar;
-        }
-    }
+    settings.phone.pp = ensurePPStateShape(settings.phone.pp);
+    if (settings.phone.pp.me) delete settings.phone.pp.me.balance;
+    // v0.2.47：每次都重建 me（保证酒馆切 persona 后打开手机就是新账号）
+    rebuildMeFromCurrentPersona(settings.phone.pp);
+    settings.phone.pp.friends = [];
+    saveAllSettings();
 
     const state = reactive(settings.phone.pp);
+    rebuildContacts(state);
 
-    // v0.2.17：异步用 ST_API 再覆盖一次（reactive，所以会自动触发 UI 刷新）
-    if (state.me?.fromStPersona) {
-        readStCurrentPersonaAsync().then(p => {
-            if (!p) return;
-            if (p.name) state.me.nickname = p.name;
-            if (p.avatarUrl) state.me.avatar = p.avatarUrl;
-        });
-    }
+    // 异步用 ST_API 再校准头像 url（reactive，会触发 UI 刷新）
+    readStCurrentPersonaAsync().then(p => {
+        if (!p) return;
+        const ppData = readPersonaData(state, p.avatarKey);
+        if (!ppData.nickname && p.name) state.me.nickname = p.name;
+        if (!ppData.avatarUrl && !state.me.avatar && p.avatarUrl) state.me.avatar = p.avatarUrl;
+    });
 
     // 自动持久化（深 watch；轻量）
     watch(() => state, () => {
-        settings.phone.pp = JSON.parse(JSON.stringify(state));
+        const next = JSON.parse(JSON.stringify(state));
+        // 好友列表按当前聊天文件和当前 persona 资料实时生成，不写回全局设置。
+        next.friends = [];
+        settings.phone.pp = next;
         saveAllSettings();
     }, { deep: true });
 
-    return {
+    // v0.2.47：暴露全局 hook，让 character-cards / 外部能在手机已开时直接更新 store
+    const api = {
         state,
         getMe: () => state.me,
+        rebuildMe() {
+            rebuildMeFromCurrentPersona(state);
+            rebuildContacts(state);
+        },
+        refreshContacts() {
+            rebuildContacts(state);
+        },
+        setChatContacts(list) {
+            rebuildContacts(state, Array.isArray(list) ? list : []);
+        },
+        addOrUpdateFriend(f) {
+            if (!f || !f.id) return;
+            const i = state.friends.findIndex(x => x.id === f.id);
+            if (i >= 0) state.friends[i] = { ...state.friends[i], ...f };
+            else state.friends.push(f);
+        },
         // v0.2.21：手动切换账号 —— 用指定 persona 覆盖 me，并真正切换酒馆 persona
         async switchAccount(persona) {
             if (!persona) return;
             state.me.nickname = persona.name || state.me.nickname;
             state.me.avatar = persona.url || state.me.avatar;
-            state.me.fromStPersona = true;
             saveAllSettings();
             // 通过 SillyTavern 的 /persona-set 斜杠命令真正切换酒馆 persona，
             // 这会触发 PERSONA_CHANGED 事件 + 更新 user_avatar / name1 / power_user，
@@ -246,4 +438,8 @@ export function createPPStore(Vue) {
         addFriend(f) { state.friends.push(f); },
         removeFriend(id) { state.friends = state.friends.filter(x => x.id !== id); },
     };
+
+    // 暴露给外部模块（character-cards 等）
+    window.__ggg_phone_pp_store = api;
+    return api;
 }

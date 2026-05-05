@@ -35,6 +35,13 @@ let expandedImageIndex = -1;
 let expandedColorIndex = -1;
 let expandedThemeVarIndex = -1;
 let overrides = {};
+let imagePreviewResizeInstalled = false;
+let imagePreviewResizeTimer = null;
+let imagePreviewResizeObserver = null;
+
+function colorPickerValue(evt, fallback = '#000000') {
+    return evt?.detail?.rgba || evt?.detail?.hex || evt?.target?.rgba || evt?.target?.hex || fallback;
+}
 
 // ============================================================
 // 导出
@@ -46,10 +53,13 @@ export function initUICustom() {
     scanCSS();
     renderThemeVars();
     injectOverrideStyle();
+    installImagePreviewResizeHandler();
 }
 
 export function onThemeChangedUICustom(newTheme) {
     saveCurrentThemeData();
+    const styleEl = document.getElementById(OVERRIDE_STYLE_ID);
+    if (styleEl) styleEl.textContent = '';
     setCurrentThemeName(newTheme);
     loadCurrentThemeData();
     // 若无存档，自动创建并加载默认空存档
@@ -67,6 +77,7 @@ export function onThemeChangedUICustom(newTheme) {
     }
     scanCSS();
     injectOverrideStyle();
+    requestAnimationFrame(() => injectOverrideStyle());
     refreshPresetList();
     renderThemeVars();
     const el = document.getElementById('ggg-ui-custom-theme-name');
@@ -144,13 +155,15 @@ function saveCurrentThemeData() {
 function loadCurrentThemeData() {
     const data = getThemeData();
     if (!data.themeVars) data.themeVars = {};
+    overrides = {};
     // 如果有活动存档，从存档加载（修复切换存档后刷新显示旧存档的问题）
     if (data.currentPreset && data.presets?.[data.currentPreset]) {
         const preset = data.presets[data.currentPreset];
         overrides = JSON.parse(JSON.stringify(preset.overrides || {}));
-        if (preset.themeVars) data.themeVars = JSON.parse(JSON.stringify(preset.themeVars));
+        data.themeVars = JSON.parse(JSON.stringify(preset.themeVars || {}));
     } else {
         overrides = JSON.parse(JSON.stringify(data.overrides || {}));
+        data.themeVars = JSON.parse(JSON.stringify(data.themeVars || {}));
     }
 }
 
@@ -487,7 +500,7 @@ function scanCSS() {
         const value = match[3];
         const key = `img:${role ? role + ':' : ''}${name}`;
         const si = findSelectorForMatch(cssText, match.index);
-        parsedImages.push({ type: 'img', role, name, originalValue: value, key, selector: si.selector, atRule: si.atRule });
+        parsedImages.push({ type: 'img', role, name, originalValue: value, key, selector: si.selector, atRule: si.atRule, previewBox: extractPreviewBox(cssText, match.index), defaultProps: extractImageDefaultProps(cssText, match.index) });
     }
 
     // 文字
@@ -640,6 +653,56 @@ function extractFullDeclaration(cssText, matchIndex) {
     return null;
 }
 
+function extractRuleDeclarations(cssText, matchIndex) {
+    let braceStart = matchIndex;
+    while (braceStart >= 0 && cssText[braceStart] !== '{') braceStart--;
+    if (braceStart < 0) return [];
+    let braceEnd = matchIndex, depth = 0;
+    while (braceEnd < cssText.length) {
+        if (cssText[braceEnd] === '{') depth++;
+        if (cssText[braceEnd] === '}') { depth--; if (depth <= 0) break; }
+        braceEnd++;
+    }
+    return parseDeclarations(cssText.substring(braceStart + 1, braceEnd));
+}
+
+function parsePxLength(value) {
+    const match = (value || '').trim().match(/^(-?\d+(?:\.\d+)?)px$/i);
+    return match ? parseFloat(match[1]) : null;
+}
+
+function parseAspectRatioValue(value) {
+    const normalized = (value || '').trim();
+    const pair = normalized.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+    if (pair) return parseFloat(pair[1]) / Math.max(0.001, parseFloat(pair[2]));
+    const single = normalized.match(/^(\d+(?:\.\d+)?)$/);
+    return single ? parseFloat(single[1]) : null;
+}
+
+function extractPreviewBox(cssText, matchIndex) {
+    const props = {};
+    extractRuleDeclarations(cssText, matchIndex).forEach(decl => { props[decl.property.toLowerCase()] = decl.value; });
+    const width = parsePxLength(props.width);
+    const height = parsePxLength(props.height);
+    const aspect = parseAspectRatioValue(props['aspect-ratio']);
+    if (width && height) return { width, height, source: 'css' };
+    if (width && aspect) return { width, height: Math.round(width / aspect), source: 'css' };
+    if (height && aspect) return { width: Math.round(height * aspect), height, source: 'css' };
+    return null;
+}
+
+function extractImageDefaultProps(cssText, matchIndex) {
+    const props = {};
+    extractRuleDeclarations(cssText, matchIndex).forEach(decl => {
+        props[decl.property.toLowerCase()] = decl.value;
+    });
+    return {
+        size: props['background-size'] || 'auto auto',
+        position: props['background-position'] || '0% 0%',
+        repeat: props['background-repeat'] || 'repeat',
+    };
+}
+
 function parseDeclarations(blockContent) {
     const results = [];
     let i = 0;
@@ -693,14 +756,24 @@ function replaceUrlInValue(fullValue, oldUrl, newUrl) {
 function escapeRegExp(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 function buildImageOverride(item, newUrl, props) {
-    const cssText = SillyTavern.getContext().powerUserSettings?.custom_css || '';
+    const powerCSS = SillyTavern.getContext().powerUserSettings?.custom_css || '';
+    const themeData = getThemeData();
+    const oldCSS = themeData.customCSS || '';
+    const itemsCSS = (themeData.customHTML || [])
+        .filter(it => it.css?.trim())
+        .map(it => `/* --- ${it.label || it.id} --- */\n${it.css}`)
+        .join('\n');
+    const gggCSS = [oldCSS, itemsCSS].filter(Boolean).join('\n');
+    const cssText = powerCSS + (gggCSS ? '\n/* === ggg-custom-css === */\n' + gggCSS : '');
     const re = new RegExp(`\\/\\*\\s*ggg-img(?:-(user|char))?\\s*:\\s*${escapeRegExp(item.name)}\\s*\\*\\/\\s*(?:[^;]*?)url\\(\\s*['"]([^'"]*)['"]\\s*\\)`, 'gi');
     let match;
     re.lastIndex = 0;
     while ((match = re.exec(cssText)) !== null) {
         const role = (match[1] || '').toLowerCase();
         if (role === item.role) {
-            const decl = extractFullDeclaration(cssText, match.index);
+            const urlOffsetInMatch = match[0].lastIndexOf('url(');
+            const declIndex = urlOffsetInMatch >= 0 ? match.index + urlOffsetInMatch : match.index;
+            const decl = extractFullDeclaration(cssText, declIndex);
             if (decl) {
                 let newFullValue = replaceUrlInValue(decl.fullValue, item.originalValue, newUrl);
                 const cssProps = [`${decl.propertyName}: ${newFullValue}`];
@@ -726,6 +799,138 @@ function buildImageOverride(item, newUrl, props) {
 // ============================================================
 // 图片渲染
 // ============================================================
+function getRuntimePreviewBox(item) {
+    if (!item?.selector) return null;
+    const pseudoMatch = item.selector.match(/(::before|::after)\s*$/);
+    const pseudo = pseudoMatch ? pseudoMatch[1] : null;
+    const baseSelector = pseudo ? item.selector.replace(/(::before|::after)\s*$/, '').trim() : item.selector;
+    const parseRenderedLength = (value, fallbackBase) => {
+        const normalized = (value || '').trim();
+        if (normalized.endsWith('px')) return parseFloat(normalized);
+        if (normalized.endsWith('%') && fallbackBase > 0) return fallbackBase * parseFloat(normalized) / 100;
+        return null;
+    };
+    try {
+        const el = document.querySelector(baseSelector);
+        if (!el) return null;
+        const style = window.getComputedStyle(el, pseudo);
+        const baseRect = el.getBoundingClientRect();
+        const width = pseudo ? parseRenderedLength(style.width, baseRect.width) : baseRect.width;
+        const height = pseudo ? parseRenderedLength(style.height, baseRect.height) : baseRect.height;
+        if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+            return { width, height, source: 'runtime' };
+        }
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+function getPreviewBaseSelector(item) {
+    if (!item?.selector) return null;
+    return item.selector.replace(/(::before|::after)\s*$/, '').trim();
+}
+
+function getPreviewBox(item) {
+    return item ? (getRuntimePreviewBox(item) || item.previewBox || null) : null;
+}
+
+function getPreviewBoxStyle(item) {
+    const box = getPreviewBox(item);
+    if (!box) return { style: '', title: '' };
+    return {
+        style: `aspect-ratio: ${box.width} / ${box.height};`,
+        title: `${Math.round(box.width)} x ${Math.round(box.height)} (${box.source === 'runtime' ? '实际盒子' : 'CSS尺寸'})`,
+    };
+}
+
+function applyCardPreviewAspect(preview, item) {
+    applyPreviewBoxToElement(preview, item);
+}
+
+function applyPreviewBoxToElement(preview, item) {
+    if (!preview || !item) return;
+    const box = getPreviewBox(item);
+    if (!box) {
+        preview.style.removeProperty('aspect-ratio');
+        preview.removeAttribute('title');
+        return;
+    }
+    preview.style.aspectRatio = `${box.width} / ${box.height}`;
+    preview.title = `${Math.round(box.width)} x ${Math.round(box.height)} (${box.source === 'runtime' ? '实际盒子' : 'CSS尺寸'})`;
+}
+
+function applyCardPreviewRender(preview, url, props) {
+    if (!preview) return;
+    preview.style.backgroundImage = `url('${url}')`;
+    preview.style.backgroundPosition = props?.position || '0% 0%';
+    preview.style.backgroundSize = props?.size || 'auto auto';
+    preview.style.backgroundRepeat = props?.repeat || 'repeat';
+}
+
+function refreshImageCardPreview(index, url, props = null) {
+    const card = document.querySelector(`.ggg-img-card[data-index="${index}"] .ggg-img-card-preview`);
+    if (!card) return;
+    applyCardPreviewRender(card, url, getEffectiveImageProps(parsedImages[index], props || overrides[parsedImages[index]?.key]?._props || null));
+    applyCardPreviewAspect(card, parsedImages[index]);
+}
+
+function applyImageCardAspects(root) {
+    root.querySelectorAll('.ggg-img-card-preview').forEach(preview => {
+        applyCardPreviewAspect(preview, parsedImages[parseInt(preview.dataset.index)]);
+    });
+}
+
+function refreshResponsiveImagePreviews() {
+    const list = document.getElementById('ggg-images-list');
+    if (list) applyImageCardAspects(list);
+    if (expandedImageIndex >= 0) {
+        const visualStage = document.querySelector(`.ggg-img-expand[data-expand-index="${expandedImageIndex}"] .ggg-img-visual-stage`);
+        if (visualStage) applyPreviewBoxToElement(visualStage, parsedImages[expandedImageIndex]);
+    }
+}
+
+function observeImagePreviewTargets() {
+    if (!imagePreviewResizeObserver) return;
+    const list = document.getElementById('ggg-images-list');
+    if (list) imagePreviewResizeObserver.observe(list);
+    const seen = new Set();
+    parsedImages.forEach(item => {
+        const selector = getPreviewBaseSelector(item);
+        if (!selector || seen.has(selector)) return;
+        seen.add(selector);
+        try {
+            const el = document.querySelector(selector);
+            if (el) imagePreviewResizeObserver.observe(el);
+        } catch {}
+    });
+}
+
+function scheduleImagePreviewRefresh() {
+    clearTimeout(imagePreviewResizeTimer);
+    imagePreviewResizeTimer = setTimeout(refreshResponsiveImagePreviews, 80);
+}
+
+function installImagePreviewResizeHandler() {
+    if (imagePreviewResizeInstalled) return;
+    imagePreviewResizeInstalled = true;
+    window.addEventListener('resize', scheduleImagePreviewRefresh);
+    if (typeof ResizeObserver !== 'undefined') {
+        imagePreviewResizeObserver = new ResizeObserver(scheduleImagePreviewRefresh);
+        const observeTargets = () => {
+            const chat = document.getElementById('chat');
+            if (chat) imagePreviewResizeObserver.observe(chat);
+            observeImagePreviewTargets();
+        };
+        observeTargets();
+        setTimeout(observeTargets, 500);
+    }
+}
+
+function getEffectiveImageProps(item, props = null) {
+    return { ...(item?.defaultProps || { size: 'auto auto', position: '0% 0%', repeat: 'repeat' }), ...(props || {}) };
+}
+
 function renderImages() {
     const list = document.getElementById('ggg-images-list');
     const empty = document.getElementById('ggg-no-images');
@@ -746,11 +951,14 @@ function renderImages() {
         for (const { item, i } of items) {
             const isExpanded = i === expandedImageIndex;
             const currentUrl = getCurrentValue(item);
-            html += `<div class="ggg-img-card ${isExpanded ? 'expanded' : ''}" data-index="${i}"><div class="ggg-img-card-preview" style="background-image: url('${escapeAttr(currentUrl)}');"></div><div class="ggg-img-card-label" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div></div>`;
+            const currentProps = getEffectiveImageProps(item, overrides[item.key]?._props || null);
+            const previewBox = getPreviewBoxStyle(item);
+            html += `<div class="ggg-img-card ${isExpanded ? 'expanded' : ''}" data-index="${i}"><div class="ggg-img-card-preview" data-index="${i}" title="${escapeAttr(previewBox.title)}" style="${previewBox.style} background-image: url('${escapeAttr(currentUrl)}'); background-position: ${escapeAttr(currentProps.position)}; background-size: ${escapeAttr(currentProps.size)}; background-repeat: ${escapeAttr(currentProps.repeat)};"></div><div class="ggg-img-card-label" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</div></div>`;
             if (isExpanded) html += buildExpandPanel(i, item);
         }
     }
     list.innerHTML = html;
+    observeImagePreviewTargets();
 
     list.querySelectorAll('.ggg-img-card').forEach(card => {
         card.addEventListener('click', (e) => {
@@ -778,6 +986,13 @@ function buildExpandPanel(index, item) {
     }).join('');
 
     return `<div class="ggg-img-expand" data-expand-index="${index}">
+        <div class="ggg-img-visual-tools">
+            <div class="ggg-img-visual-toggle menu_button menu_button_icon ggg-btn-small"><i class="ggg-fa fa-solid fa-up-down-left-right"></i> 拖拽定位</div>
+            <span class="ggg-img-visual-status">拖动图片调整位置，滚轮/双指缩放</span>
+        </div>
+        <div class="ggg-img-visual-editor" style="display:none;">
+            <div class="ggg-img-visual-stage"></div>
+        </div>
         <div class="ggg-img-expand-tabs"><div class="ggg-img-expand-tab active" data-source="backgrounds">背景</div><div class="ggg-img-expand-tab" data-source="gallery">图库</div></div>
         <div class="ggg-expand-gallery-filter" id="ggg-expand-filter-${index}" style="display:none;"></div>
         <div class="ggg-img-expand-grid" id="ggg-expand-grid-${index}"></div>
@@ -805,17 +1020,23 @@ function bindExpandEvents(index) {
     const grid = expand.querySelector(`#ggg-expand-grid-${index}`);
     const item = parsedImages[index];
     let selectedUrl = getCurrentValue(item);
+    const visualEditor = expand.querySelector('.ggg-img-visual-editor');
+    const visualStage = expand.querySelector('.ggg-img-visual-stage');
 
     expand.addEventListener('click', (e) => e.stopPropagation());
     expand.querySelectorAll('.ggg-img-prop-select').forEach(select => {
         select.addEventListener('change', () => {
             const ci = expand.querySelector(`.ggg-prop-${select.dataset.prop}-custom`);
             if (ci) ci.style.display = select.value === 'custom' ? '' : 'none';
+            updateVisualStage();
         });
         ['keydown', 'keyup', 'keypress'].forEach(evt => select.addEventListener(evt, (e) => e.stopPropagation()));
     });
     expand.querySelectorAll('.ggg-img-prop-input').forEach(input => {
-        ['keydown', 'keyup', 'keypress', 'input'].forEach(evt => input.addEventListener(evt, (e) => e.stopPropagation()));
+        ['keydown', 'keyup', 'keypress', 'input'].forEach(evt => input.addEventListener(evt, (e) => {
+            e.stopPropagation();
+            if (evt === 'input') updateVisualStage();
+        }));
     });
 
     function getSelectedProps() {
@@ -826,6 +1047,135 @@ function bindExpandEvents(index) {
             if (val) props[select.dataset.prop] = val;
         });
         return Object.keys(props).length > 0 ? props : null;
+    }
+
+    function setCustomProp(prop, value) {
+        const select = expand.querySelector(`.ggg-img-prop-select[data-prop="${prop}"]`);
+        const input = expand.querySelector(`.ggg-prop-${prop}-custom`);
+        if (!select || !input) return;
+        select.value = 'custom';
+        input.style.display = '';
+        input.value = value;
+    }
+
+    function parsePosition(value) {
+        const normalized = (value || '').trim().toLowerCase();
+        if (!normalized || normalized === 'center') return { x: 50, y: 50 };
+        const keywordMap = { left: 0, center: 50, right: 100, top: 0, bottom: 100 };
+        const parts = normalized.split(/\s+/);
+        let x = 50, y = 50;
+        if (parts.length === 1) {
+            if (['left', 'center', 'right'].includes(parts[0])) x = keywordMap[parts[0]];
+            if (['top', 'bottom'].includes(parts[0])) y = keywordMap[parts[0]];
+        } else {
+            const [a, b] = parts;
+            if (a.endsWith('%')) x = parseFloat(a);
+            else if (['left', 'center', 'right'].includes(a)) x = keywordMap[a];
+            else if (['top', 'bottom'].includes(a)) y = keywordMap[a];
+            if (b.endsWith('%')) y = parseFloat(b);
+            else if (['top', 'center', 'bottom'].includes(b)) y = keywordMap[b];
+            else if (['left', 'right'].includes(b)) x = keywordMap[b];
+        }
+        return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+    }
+
+    function parseZoom(value) {
+        const match = (value || '').match(/(\d+(?:\.\d+)?)%\s+auto/i);
+        return match ? parseFloat(match[1]) : 100;
+    }
+
+    function updateVisualStage() {
+        const selectedProps = getSelectedProps() || {};
+        const props = getEffectiveImageProps(item, selectedProps);
+        if (visualStage) {
+            applyVisualStageBox();
+            visualStage.style.backgroundImage = `url('${selectedUrl}')`;
+            visualStage.style.backgroundPosition = props.position;
+            visualStage.style.backgroundSize = props.size;
+            visualStage.style.backgroundRepeat = props.repeat;
+        }
+        refreshImageCardPreview(index, selectedUrl, selectedProps);
+    }
+
+    function applyVisualStageBox() {
+        if (!visualStage) return;
+        applyPreviewBoxToElement(visualStage, item);
+    }
+
+    expand.querySelector('.ggg-img-visual-toggle')?.addEventListener('click', () => {
+        if (!visualEditor || !visualStage) return;
+        visualEditor.style.display = visualEditor.style.display === 'none' ? '' : 'none';
+        if (visualEditor.style.display !== 'none') updateVisualStage();
+    });
+
+    if (visualStage) {
+        applyVisualStageBox();
+        let dragging = false;
+        let startPoint = { x: 0, y: 0 };
+        let startPosition = parsePosition((getSelectedProps() || {}).position);
+        const activePointers = new Map();
+        let pinchStartDistance = 0;
+        let pinchStartZoom = 100;
+        const commitPosition = (pos) => {
+            const x = Math.round(Math.max(0, Math.min(100, pos.x)));
+            const y = Math.round(Math.max(0, Math.min(100, pos.y)));
+            setCustomProp('position', `${x}% ${y}%`);
+            updateVisualStage();
+        };
+        const commitZoom = (zoom) => {
+            const next = Math.max(20, Math.min(500, Math.round(zoom)));
+            setCustomProp('size', `${next}% auto`);
+            updateVisualStage();
+        };
+        const getPointerDistance = () => {
+            const points = Array.from(activePointers.values());
+            if (points.length < 2) return 0;
+            return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+        };
+        visualStage.addEventListener('pointerdown', (e) => {
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            visualStage.setPointerCapture(e.pointerId);
+            if (activePointers.size >= 2) {
+                dragging = false;
+                pinchStartDistance = getPointerDistance();
+                pinchStartZoom = parseZoom((getSelectedProps() || {}).size);
+            } else {
+                dragging = true;
+                startPoint = { x: e.clientX, y: e.clientY };
+                startPosition = parsePosition((getSelectedProps() || {}).position);
+                visualStage.classList.add('dragging');
+            }
+            e.preventDefault();
+        });
+        visualStage.addEventListener('pointermove', (e) => {
+            if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (activePointers.size >= 2 && pinchStartDistance > 0) {
+                commitZoom(pinchStartZoom * (getPointerDistance() / pinchStartDistance));
+                return;
+            }
+            if (!dragging) return;
+            const rect = visualStage.getBoundingClientRect();
+            const dx = ((e.clientX - startPoint.x) / Math.max(1, rect.width)) * 100;
+            const dy = ((e.clientY - startPoint.y) / Math.max(1, rect.height)) * 100;
+            commitPosition({ x: startPosition.x - dx, y: startPosition.y - dy });
+        });
+        visualStage.addEventListener('pointerup', (e) => {
+            activePointers.delete(e.pointerId);
+            dragging = false;
+            if (visualStage.hasPointerCapture(e.pointerId)) visualStage.releasePointerCapture(e.pointerId);
+            visualStage.classList.remove('dragging');
+        });
+        visualStage.addEventListener('pointercancel', (e) => {
+            activePointers.delete(e.pointerId);
+            dragging = false;
+            visualStage.classList.remove('dragging');
+        });
+        visualStage.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const props = getSelectedProps() || {};
+            const current = parseZoom(props.size);
+            commitZoom(current + (e.deltaY < 0 ? 8 : -8));
+        }, { passive: false });
     }
 
     let expandFilterTags = [];
@@ -909,8 +1259,8 @@ function bindExpandEvents(index) {
                     grid.querySelectorAll('.ggg-img-expand-item').forEach(d => d.classList.remove('selected'));
                     div.classList.add('selected');
                     selectedUrl = imgItem.url;
-                    const card = document.querySelector(`.ggg-img-card[data-index="${index}"] .ggg-img-card-preview`);
-                    if (card) card.style.backgroundImage = `url('${imgItem.url}')`;
+                    refreshImageCardPreview(index, imgItem.url);
+                    updateVisualStage();
                 });
                 grid.appendChild(div);
             });
@@ -957,8 +1307,8 @@ function bindExpandEvents(index) {
                         gridEl.querySelectorAll('.ggg-img-expand-item').forEach(d => d.classList.remove('selected'));
                         div.classList.add('selected');
                         selectedUrl = imgItem.url;
-                        const card = document.querySelector(`.ggg-img-card[data-index="${cardIndex}"] .ggg-img-card-preview`);
-                        if (card) card.style.backgroundImage = `url('${imgItem.url}')`;
+                        refreshImageCardPreview(cardIndex, imgItem.url);
+                        updateVisualStage();
                     });
                     gridEl.appendChild(div);
                 });
@@ -998,11 +1348,11 @@ function bindExpandEvents(index) {
         delete overrides[item.key];
         injectOverrideStyle(); saveAllSettings();
         selectedUrl = item.originalValue;
-        const card = document.querySelector(`.ggg-img-card[data-index="${index}"] .ggg-img-card-preview`);
-        if (card) card.style.backgroundImage = `url('${selectedUrl}')`;
+        refreshImageCardPreview(index, selectedUrl);
         grid.querySelectorAll('.ggg-img-expand-item').forEach(d => d.classList.remove('selected'));
         expand.querySelectorAll('.ggg-img-prop-select').forEach(s => s.value = '');
         expand.querySelectorAll('.ggg-img-prop-input').forEach(inp => { inp.value = ''; inp.style.display = 'none'; });
+        updateVisualStage();
         toastr.success(`已恢复默认: ${item.name}`);
     });
 
@@ -1043,7 +1393,7 @@ function renderTexts() {
         html += `<div class="ggg-text-group-title">${title}</div>`;
         for (const { item, i } of items) {
             const cv = getCurrentValue(item);
-            html += `<div class="ggg-text-row" data-index="${i}"><div class="ggg-text-row-name">${escapeHtml(item.name)}</div><div class="ggg-text-row-value">${escapeHtml(cv)}</div><div class="ggg-text-row-actions"><span class="ggg-text-btn ggg-text-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span><span class="ggg-text-btn ggg-text-edit" data-index="${i}" title="编辑"><i class="ggg-fa fa-solid fa-pen-to-square"></i></span></div></div>`;
+            html += `<div class="ggg-text-row" data-index="${i}"><div class="ggg-text-row-head"><div class="ggg-text-row-name">${escapeHtml(item.name)}</div><div class="ggg-text-row-actions"><span class="ggg-text-btn ggg-text-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span><span class="ggg-text-btn ggg-text-edit" data-index="${i}" title="编辑"><i class="ggg-fa fa-solid fa-pen-to-square"></i></span></div></div><div class="ggg-text-row-body"><div class="ggg-text-row-value">${escapeHtml(cv)}</div></div></div>`;
         }
     }
     list.innerHTML = html;
@@ -1061,31 +1411,62 @@ function enterTextEditMode(index) {
     const item = parsedTexts[index];
     const row = document.querySelector(`.ggg-text-row[data-index="${index}"]`);
     if (!row || !item) return;
-    const valueEl = row.querySelector('.ggg-text-row-value');
     const actionsEl = row.querySelector('.ggg-text-row-actions');
+    const bodyEl = row.querySelector('.ggg-text-row-body');
+    const valueEl = row.querySelector('.ggg-text-row-value');
     const currentVal = getCurrentValue(item);
+    if (!actionsEl || !bodyEl || !valueEl) return;
     valueEl.style.display = 'none';
+
+    const oldInput = bodyEl.querySelector('.ggg-text-row-input');
+    if (oldInput) oldInput.remove();
+
+    actionsEl.innerHTML = `<span class="ggg-text-btn ggg-text-cancel" title="取消"><i class="ggg-fa fa-solid fa-xmark"></i></span><span class="ggg-text-btn ggg-text-confirm" title="确认"><i class="ggg-fa fa-solid fa-check"></i></span>`;
 
     const textarea = document.createElement('textarea');
     textarea.className = 'ggg-text-row-input';
     textarea.value = currentVal;
-    textarea.rows = Math.max(1, Math.ceil(currentVal.length / 30));
+    textarea.rows = 2;
+    const autoResize = () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    };
     ['keydown', 'keyup', 'keypress', 'mousedown', 'input'].forEach(evt => textarea.addEventListener(evt, (e) => e.stopPropagation()));
-    valueEl.parentNode.insertBefore(textarea, valueEl);
+    textarea.addEventListener('input', autoResize);
+    textarea.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            saveTextEdit(index, textarea.value);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            renderTexts();
+        }
+    });
+    bodyEl.appendChild(textarea);
+    autoResize();
 
-    actionsEl.innerHTML = `<span class="ggg-text-btn ggg-text-cancel" title="取消"><i class="ggg-fa fa-solid fa-xmark"></i></span><span class="ggg-text-btn ggg-text-confirm" title="确认"><i class="ggg-fa fa-solid fa-check"></i></span>`;
-    setTimeout(() => { textarea.focus(); textarea.selectionStart = textarea.selectionEnd = textarea.value.length; }, 50);
-
-    actionsEl.querySelector('.ggg-text-cancel')?.addEventListener('click', (e) => { e.stopPropagation(); renderTexts(); });
+    actionsEl.querySelector('.ggg-text-cancel')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renderTexts();
+    });
     actionsEl.querySelector('.ggg-text-confirm')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const newValue = textarea.value;
-
-        if (newValue === item.originalValue) delete overrides[item.key];
-        else overrides[item.key] = { selector: item.selector, atRule: item.atRule, property: 'content', value: `"${newValue}"` };
-        injectOverrideStyle(); saveAllSettings(); renderTexts();
-        toastr.success(`已更新文字: ${item.name}`);
+        saveTextEdit(index, textarea.value);
     });
+
+    setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+    }, 50);
+}
+
+function saveTextEdit(index, newValue) {
+    const item = parsedTexts[index];
+    if (!item) return;
+    if (newValue === item.originalValue) delete overrides[item.key];
+    else overrides[item.key] = { selector: item.selector, atRule: item.atRule, property: 'content', value: `"${newValue}"` };
+    injectOverrideStyle(); saveAllSettings(); renderTexts();
+    toastr.success(`已更新文字: ${item.name}`);
 }
 
 // ============================================================
@@ -1110,28 +1491,19 @@ function renderColors() {
         html += `<div class="ggg-color-group-title">${title}</div>`;
         for (const { item, i } of items) {
             const cv = getCurrentValue(item);
-            const isExpanded = i === expandedColorIndex;
-            html += `<div class="ggg-color-row" data-index="${i}"><div class="ggg-color-swatch" data-index="${i}" style="background: ${escapeAttr(cv)};"><input type="color" class="ggg-color-swatch-input" data-index="${i}" value="${colorToHex(cv)}"></div><div class="ggg-color-row-name">${escapeHtml(item.name)}</div><div class="ggg-color-row-actions"><span class="ggg-text-btn ggg-color-slider-toggle" data-index="${i}" title="调色面板"><i class="ggg-fa fa-solid fa-sliders"></i></span><span class="ggg-text-btn ggg-color-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span></div></div>`;
-            if (isExpanded) html += buildColorSliders(i, item);
+            html += `<div class="ggg-color-row" data-index="${i}"><toolcool-color-picker class="ggg-color-picker" data-index="${i}" color="${escapeAttr(cv)}"></toolcool-color-picker><div class="ggg-color-row-name">${escapeHtml(item.name)}</div><div class="ggg-color-row-actions"><span class="ggg-text-btn ggg-color-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span></div></div>`;
         }
     }
     list.innerHTML = html;
 
-    list.querySelectorAll('.ggg-color-swatch-input').forEach(input => {
-        input.addEventListener('input', (e) => {
-            const idx = parseInt(input.dataset.index);
+    list.querySelectorAll('.ggg-color-picker').forEach(picker => {
+        picker.addEventListener('change', (e) => {
+            const idx = parseInt(picker.dataset.index);
             const item = parsedColors[idx];
-            const newColor = e.target.value;
-            const swatch = input.closest('.ggg-color-swatch');
-            if (swatch) swatch.style.background = newColor;
+            const newColor = colorPickerValue(e, getCurrentValue(item));
             applyColorChange(item, newColor);
-            if (idx === expandedColorIndex) syncSlidersFromHex(newColor);
         });
-        ['keydown', 'keyup', 'keypress'].forEach(evt => input.addEventListener(evt, (e) => e.stopPropagation()));
-    });
-
-    list.querySelectorAll('.ggg-color-slider-toggle').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = parseInt(btn.dataset.index); expandedColorIndex = expandedColorIndex === idx ? -1 : idx; renderColors(); });
+        ['keydown', 'keyup', 'keypress'].forEach(evt => picker.addEventListener(evt, (e) => e.stopPropagation()));
     });
 
     list.querySelectorAll('.ggg-color-reset').forEach(btn => {
@@ -1142,7 +1514,7 @@ function renderColors() {
         });
     });
 
-    if (expandedColorIndex >= 0) bindColorSliderEvents(expandedColorIndex);
+    expandedColorIndex = -1;
 }
 
 function applyColorChange(item, newColor) {
@@ -1330,12 +1702,16 @@ function renderDims() {
             html += `<div class="ggg-dim-row" data-index="${i}">
                 <div class="ggg-dim-row-name">${escapeHtml(item.name)}<span class="ggg-dim-prop-name">${item.propertyName}</span></div>
                 <div class="ggg-dim-row-controls">
-                    <input type="range" class="ggg-dim-slider" data-index="${i}" min="-500" max="500" value="${parseFloat(numVal) || 0}" step="1">
-                    <input type="number" class="ggg-dim-input" data-index="${i}" value="${numVal}" step="1">
-                    <select class="ggg-dim-unit" data-index="${i}">
-                        ${['px','%','em','rem','vw','vh'].map(u => `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`).join('')}
-                    </select>
-                    <span class="ggg-text-btn ggg-dim-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span>
+                    <div class="ggg-dim-slider-wrap">
+                        <input type="range" class="ggg-dim-slider" data-index="${i}" min="-500" max="500" value="${parseFloat(numVal) || 0}" step="1">
+                    </div>
+                    <div class="ggg-dim-value-row">
+                        <input type="number" class="ggg-dim-input" data-index="${i}" value="${numVal}" step="1">
+                        <select class="ggg-dim-unit" data-index="${i}">
+                            ${['px','%','em','rem','vw','vh'].map(u => `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`).join('')}
+                        </select>
+                        <span class="ggg-text-btn ggg-dim-reset" data-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span>
+                    </div>
                 </div>
             </div>`;
         }
@@ -1407,61 +1783,26 @@ function renderThemeVars() {
     THEME_VARS.forEach((tv, i) => {
         const saved = themeVars[tv.variable];
         const computedVal = saved || getComputedStyle(document.documentElement).getPropertyValue(tv.variable).trim() || '#000000';
-        const isExpanded = i === expandedThemeVarIndex;
         html += `<div class="ggg-color-row" data-tv-index="${i}">
-            <div class="ggg-color-swatch" style="background: ${escapeAttr(computedVal)};"><input type="color" class="ggg-color-swatch-input ggg-tv-swatch" data-tv-index="${i}" value="${colorToHex(computedVal)}"></div>
+            <toolcool-color-picker class="ggg-color-picker ggg-tv-swatch" data-tv-index="${i}" color="${escapeAttr(computedVal)}"></toolcool-color-picker>
             <div class="ggg-color-row-name">${escapeHtml(tv.label)}</div>
             <div class="ggg-color-row-actions">
-                <span class="ggg-text-btn ggg-tv-slider-toggle" data-tv-index="${i}" title="调色面板"><i class="ggg-fa fa-solid fa-sliders"></i></span>
                 <span class="ggg-text-btn ggg-tv-reset" data-tv-index="${i}" title="恢复默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></span>
             </div>
         </div>`;
-        if (isExpanded) {
-            const rgba = parseColorWithAlpha(computedVal);
-            const hex6 = rgbToHex(rgba.r, rgba.g, rgba.b);
-            const hsv = rgbToHsv(rgba.r, rgba.g, rgba.b);
-            const a = Math.round(rgba.a * 100);
-            html += `<div class="ggg-color-sliders" data-tv-slider-index="${i}">
-                <div class="ggg-color-sliders-title"><div class="ggg-color-sliders-preview" style="background: ${escapeAttr(computedVal)};"></div><span>${escapeHtml(tv.label)}</span></div>
-                <div class="ggg-color-slider-group"><div class="ggg-color-slider-group-title">RGB</div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label" style="color:#f66;">R</span><input type="range" class="ggg-color-slider-track" data-channel="r" min="0" max="255" value="${rgba.r}" style="background: linear-gradient(to right, rgb(0,${rgba.g},${rgba.b}), rgb(255,${rgba.g},${rgba.b}));"><span class="ggg-color-slider-value" data-display="r">${rgba.r}</span></div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label" style="color:#6d6;">G</span><input type="range" class="ggg-color-slider-track" data-channel="g" min="0" max="255" value="${rgba.g}" style="background: linear-gradient(to right, rgb(${rgba.r},0,${rgba.b}), rgb(${rgba.r},255,${rgba.b}));"><span class="ggg-color-slider-value" data-display="g">${rgba.g}</span></div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label" style="color:#66f;">B</span><input type="range" class="ggg-color-slider-track" data-channel="b" min="0" max="255" value="${rgba.b}" style="background: linear-gradient(to right, rgb(${rgba.r},${rgba.g},0), rgb(${rgba.r},${rgba.g},255));"><span class="ggg-color-slider-value" data-display="b">${rgba.b}</span></div>
-                </div>
-                <div class="ggg-color-slider-group"><div class="ggg-color-slider-group-title">HSV</div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label">H</span><input type="range" class="ggg-color-slider-track" data-channel="h" min="0" max="360" value="${Math.round(hsv.h)}" style="background: linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%));"><span class="ggg-color-slider-value" data-display="h">${Math.round(hsv.h)}°</span></div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label">S</span><input type="range" class="ggg-color-slider-track" data-channel="s" min="0" max="100" value="${Math.round(hsv.s)}"><span class="ggg-color-slider-value" data-display="s">${Math.round(hsv.s)}%</span></div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label">V</span><input type="range" class="ggg-color-slider-track" data-channel="v" min="0" max="100" value="${Math.round(hsv.v)}"><span class="ggg-color-slider-value" data-display="v">${Math.round(hsv.v)}%</span></div>
-                </div>
-                <div class="ggg-color-slider-group"><div class="ggg-color-slider-group-title">透明度</div>
-                    <div class="ggg-color-slider-row"><span class="ggg-color-slider-label">A</span><input type="range" class="ggg-color-slider-track" data-channel="a" min="0" max="100" value="${a}" style="background: linear-gradient(to right, rgba(${rgba.r},${rgba.g},${rgba.b},0), rgba(${rgba.r},${rgba.g},${rgba.b},1));"><span class="ggg-color-slider-value" data-display="a">${a}%</span></div>
-                </div>
-                <div class="ggg-color-hex-row"><span class="ggg-color-slider-label">HEX</span><input type="text" class="ggg-color-hex-input" value="${hex6}" maxlength="7"></div>
-            </div>`;
-        }
     });
     list.innerHTML = html;
 
     // 色块直接选色
     list.querySelectorAll('.ggg-tv-swatch').forEach(input => {
-        input.addEventListener('input', (e) => {
+        input.addEventListener('change', (e) => {
             const idx = parseInt(input.dataset.tvIndex);
             const tv = THEME_VARS[idx];
             const data = getThemeData();
-            data.themeVars[tv.variable] = e.target.value;
-            const swatch = input.closest('.ggg-color-swatch');
-            if (swatch) swatch.style.background = e.target.value;
+            data.themeVars[tv.variable] = colorPickerValue(e, getComputedStyle(document.documentElement).getPropertyValue(tv.variable).trim() || '#000000');
             injectOverrideStyle(); saveAllSettings();
         });
-    });
-
-    // 展开/折叠
-    list.querySelectorAll('.ggg-tv-slider-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.tvIndex);
-            expandedThemeVarIndex = expandedThemeVarIndex === idx ? -1 : idx;
-            renderThemeVars();
-        });
+        ['keydown','keyup','keypress'].forEach(evt => input.addEventListener(evt, e => e.stopPropagation()));
     });
 
     // 重置
@@ -1476,8 +1817,7 @@ function renderThemeVars() {
         });
     });
 
-    // 滑块事件
-    if (expandedThemeVarIndex >= 0) bindThemeVarSliderEvents(expandedThemeVarIndex);
+    expandedThemeVarIndex = -1;
 }
 
 function bindThemeVarSliderEvents(index) {
