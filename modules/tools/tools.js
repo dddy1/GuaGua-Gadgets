@@ -1368,10 +1368,41 @@ function getAvatarPositionKey(kind, target) {
         const ctx = typeof SillyTavern !== 'undefined' ? SillyTavern.getContext?.() : null;
         const userAvatar = ctx?.powerUserSettings?.user_avatar || ctx?.user_avatar || window.power_user?.user_avatar || window.user_avatar;
         if (userAvatar) return userAvatar;
+    } else {
+        const charKey = getCurrentCharacterPositionKey();
+        if (charKey) return charKey;
     }
 
     const src = target?.currentSrc || target?.src || target?.getAttribute?.('src') || extractBackgroundUrl(target);
     return normalizeAvatarPositionKey(src) || '__default__';
+}
+
+function getCurrentCharacterPositionKey() {
+    const ctx = typeof SillyTavern !== 'undefined' ? SillyTavern.getContext?.() : null;
+    const candidateIds = [
+        ctx?.characterId,
+        ctx?.chid,
+        window.this_chid,
+        window.selected_chid,
+        document.getElementById('character_select')?.value,
+        document.querySelector('#rm_button_selected_ch')?.getAttribute?.('chid'),
+    ];
+    for (const value of candidateIds) {
+        if (value == null) continue;
+        const text = String(value).trim();
+        if (text) return `character:${text}`;
+    }
+
+    const names = [
+        document.getElementById('character_name_pole')?.value,
+        document.querySelector('#character_popup input[name="name"]')?.value,
+    ];
+    for (const value of names) {
+        const text = String(value || '').trim();
+        if (text) return `character-name:${text}`;
+    }
+
+    return '';
 }
 
 function normalizeAvatarPositionKey(value) {
