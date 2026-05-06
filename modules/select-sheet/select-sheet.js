@@ -445,6 +445,8 @@ function openSheet(sel) {
         let visible = 0;
         let lastWasFav = null;
         sortedOpts.forEach((o) => {
+            const optIndex = allOpts.indexOf(o);
+            const selectedNow = isMulti ? pending.has(o.value) : sel.selectedIndex === optIndex;
             const text = (o.textContent || o.label || o.value || '').trim();
             if (f && !text.toLowerCase().includes(f)) return;
             visible++;
@@ -459,7 +461,7 @@ function openSheet(sel) {
 
             const item = document.createElement('div');
             item.className = 'ggg-wi-item'
-                + (pending.has(o.value) ? ' selected' : '')
+                + (selectedNow ? ' selected' : '')
                 + (faved ? ' ggg-ss-faved' : '');
 
             // 左侧：编辑模式 → 编辑勾选框；非编辑 → 原 checkbox/dot
@@ -467,7 +469,7 @@ function openSheet(sel) {
                 ? `<input type="checkbox" class="ggg-ss-edit-cb" ${editChecked.has(o.value) ? 'checked' : ''} />`
                 : (isMulti
                     ? `<input type="checkbox" ${pending.has(o.value) ? 'checked' : ''} />`
-                    : (pending.has(o.value)
+                    : (selectedNow
                         ? '<i class="ggg-ss-cur" title="当前">●</i>'
                         : '<i class="ggg-ss-cur" style="opacity:0;">●</i>'));
 
@@ -506,7 +508,7 @@ function openSheet(sel) {
                     if (countEl) countEl.textContent = `已选 ${pending.size}`;
                 } else {
                     pending = new Set([o.value]);
-                    applyToSelect(sel, pending);
+                    applySingleOptionByIndex(sel, optIndex);
                     closeSheet();
                 }
             });
@@ -720,6 +722,19 @@ function applyToSelect(sel, pending) {
         const v = pending.size > 0 ? pending.values().next().value : '';
         if (sel.value !== v) { sel.value = v; changed = true; }
     }
+    if (!changed) return;
+    sel.dispatchEvent(new Event('input',  { bubbles: true }));
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    try {
+        const $ = window.jQuery || window.$;
+        if ($) $(sel).trigger('change');
+    } catch (e) {}
+}
+
+function applySingleOptionByIndex(sel, index) {
+    if (index < 0 || index >= sel.options.length) return;
+    const changed = sel.selectedIndex !== index;
+    if (changed) sel.selectedIndex = index;
     if (!changed) return;
     sel.dispatchEvent(new Event('input',  { bubbles: true }));
     sel.dispatchEvent(new Event('change', { bubbles: true }));
