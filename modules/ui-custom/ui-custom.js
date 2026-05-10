@@ -696,11 +696,30 @@ function extractImageDefaultProps(cssText, matchIndex) {
     extractRuleDeclarations(cssText, matchIndex).forEach(decl => {
         props[decl.property.toLowerCase()] = decl.value;
     });
+    const shorthand = parseBackgroundShorthand(props.background || '');
     return {
-        size: props['background-size'] || 'auto auto',
-        position: props['background-position'] || '0% 0%',
-        repeat: props['background-repeat'] || 'repeat',
+        size: props['background-size'] || shorthand.size || 'auto auto',
+        position: props['background-position'] || shorthand.position || '0% 0%',
+        repeat: props['background-repeat'] || shorthand.repeat || 'repeat',
     };
+}
+
+function parseBackgroundShorthand(value) {
+    const fallback = { size: '', position: '', repeat: '' };
+    const text = String(value || '').trim();
+    if (!text || typeof document === 'undefined') return fallback;
+    try {
+        const probe = document.createElement('div');
+        probe.style.background = '';
+        probe.style.background = text;
+        return {
+            size: probe.style.backgroundSize || '',
+            position: probe.style.backgroundPosition || '',
+            repeat: probe.style.backgroundRepeat || '',
+        };
+    } catch {
+        return fallback;
+    }
 }
 
 function parseDeclarations(blockContent) {

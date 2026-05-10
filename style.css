@@ -65,6 +65,73 @@
 .ggg-feature-toggles-inline { margin-top: 6px; padding-left: 16px; }
 .ggg-toggle-sub { font-size: 0.85em !important; opacity: 0.8; }
 .ggg-toggle-sub input[type="checkbox"] { width: 13px !important; height: 13px !important; }
+.ggg-floating-ball-config-block {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.04));
+}
+.ggg-floating-ball-config-title {
+    font-size: 0.84em;
+    font-weight: bold;
+    color: var(--SmartThemeBodyColor, #ddd);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+.ggg-floating-ball-config-title::-webkit-details-marker {
+    display: none;
+}
+.ggg-floating-ball-config-title::before {
+    content: "\f054";
+    font-family: "Font Awesome 6 Free", "FontAwesome";
+    font-weight: 900;
+    font-size: 0.8em;
+    opacity: 0.65;
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+}
+.ggg-floating-ball-config-block[open] > .ggg-floating-ball-config-title::before {
+    transform: rotate(90deg);
+}
+.ggg-floating-ball-config-block > .ggg-floating-ball-config-row:first-of-type {
+    margin-top: 8px;
+}
+.ggg-floating-ball-config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    cursor: default;
+}
+.ggg-floating-ball-config-label {
+    min-width: 48px;
+    font-size: 0.82em;
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+.ggg-floating-ball-config-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+.ggg-floating-ball-config-inputs input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+.ggg-floating-ball-config-inputs input[type="number"] {
+    width: 58px;
+    padding: 3px 5px;
+}
+.ggg-floating-ball-config-unit {
+    min-width: 22px;
+    font-size: 0.8em;
+    opacity: 0.7;
+}
 
 .ggg-btn-small { padding: 3px 8px !important; font-size: 0.85em !important; min-width: unset !important; }
 .ggg-label { opacity: 0.7; flex-shrink: 0; }

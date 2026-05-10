@@ -125,6 +125,84 @@ export function getAllTags() {
     return [...tagSet].sort();
 }
 
+function listBackgroundFilesFromDom() {
+    const files = [];
+    document.querySelectorAll('#bg_menu_content .bg_example').forEach(el => {
+        const filename = el.getAttribute('bgfile');
+        if (filename) files.push(filename);
+    });
+    return files;
+}
+
+function parseScannedGGGItem(filename) {
+    const match = String(filename || '').match(/^ggg_(gallery|avatar|meme)_(\d+)_(.+)$/);
+    if (!match) return null;
+
+    const [, scope, tsRaw, originalName] = match;
+    return {
+        scope,
+        item: {
+            name: originalName || filename,
+            url: `/backgrounds/${filename}`,
+            filename,
+            timestamp: Number(tsRaw) || Date.now(),
+            tags: [],
+        },
+    };
+}
+
+async function scanAndRestoreGGGItems() {
+    const files = listBackgroundFilesFromDom();
+    if (files.length === 0) {
+        toastr.warning('没有读取到背景列表，先打开过酒馆背景列表时再试一次');
+        return;
+    }
+
+    const settings = getSettings();
+    const scopes = {
+        gallery: Array.isArray(galleryImages) ? galleryImages : [],
+        avatar: Array.isArray(avatarImages) ? avatarImages : [],
+        meme: Array.isArray(memeImages) ? memeImages : [],
+    };
+    const existingFiles = {
+        gallery: new Set(scopes.gallery.map(img => img?.filename).filter(Boolean)),
+        avatar: new Set(scopes.avatar.map(img => img?.filename).filter(Boolean)),
+        meme: new Set(scopes.meme.map(img => img?.filename).filter(Boolean)),
+    };
+    const restored = { gallery: 0, avatar: 0, meme: 0 };
+
+    files.forEach(filename => {
+        const parsed = parseScannedGGGItem(filename);
+        if (!parsed) return;
+        const { scope, item } = parsed;
+        if (existingFiles[scope]?.has(item.filename)) return;
+        scopes[scope].push(item);
+        existingFiles[scope].add(item.filename);
+        restored[scope] += 1;
+    });
+
+    settings.gallery = galleryImages = scopes.gallery;
+    settings.avatars = avatarImages = scopes.avatar;
+    settings.memes = memeImages = scopes.meme;
+    saveAllSettings();
+
+    refreshGalleryGrid();
+    refreshAvatarGrid();
+    refreshMemeGrid();
+
+    const total = restored.gallery + restored.avatar + restored.meme;
+    if (total === 0) {
+        toastr.info('扫描完成，没有发现需要恢复的 GGG 图片');
+        return;
+    }
+
+    const parts = [];
+    if (restored.gallery > 0) parts.push(`图库 ${restored.gallery}`);
+    if (restored.avatar > 0) parts.push(`头像 ${restored.avatar}`);
+    if (restored.meme > 0) parts.push(`表情包 ${restored.meme}`);
+    toastr.success(`扫描恢复完成：${parts.join('，')}`);
+}
+
 function renderGalleryPanel() {
     const panel = document.getElementById('ggg-panel-gallery');
     if (!panel || panel.querySelector('#ggg-gallery-subtabs')) return;
@@ -151,6 +229,9 @@ function renderGalleryPanel() {
                     </div>
                     <div id="ggg-btn-edit-gallery" class="menu_button menu_button_icon ggg-btn-small" title="编辑模式">
                         <i class="ggg-fa fa-solid fa-pen-to-square"></i> 编辑
+                    </div>
+                    <div id="ggg-btn-scan-gallery" class="menu_button menu_button_icon ggg-btn-small" title="扫描 backgrounds 中的 GGG 图片并恢复到图库">
+                        <i class="ggg-fa fa-solid fa-rotate"></i> 恢复/扫描
                     </div>
                     <div id="ggg-btn-upload-gallery" class="menu_button menu_button_icon ggg-btn-small" title="上传图片">
                         <i class="ggg-fa fa-solid fa-upload"></i> 上传
@@ -250,6 +331,25 @@ function initGalleryEvents() {
 
     document.getElementById('ggg-btn-upload-gallery')?.addEventListener('click', () => {
         triggerUpload('gallery', () => refreshGalleryGrid());
+    });
+
+    document.getElementById('ggg-btn-scan-gallery')?.addEventListener('click', async () => {
+        const btn = document.getElementById('ggg-btn-scan-gallery');
+        if (btn) {
+            btn.classList.add('disabled');
+            btn.setAttribute('aria-disabled', 'true');
+        }
+        try {
+            await scanAndRestoreGGGItems();
+        } catch (err) {
+            console.error('[ggg] 扫描恢复失败:', err);
+            toastr.error('扫描恢复失败，请查看控制台日志');
+        } finally {
+            if (btn) {
+                btn.classList.remove('disabled');
+                btn.removeAttribute('aria-disabled');
+            }
+        }
     });
 
     // 图库：管理标签（删除标签）

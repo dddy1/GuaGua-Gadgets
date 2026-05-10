@@ -59,6 +59,28 @@ export function getThemeData() {
     return settings.themeOverrides[currentThemeName];
 }
 
+function clampNumber(value, min, max, fallback) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.max(min, Math.min(max, num));
+}
+
+function normalizeFloatingBallSettings(raw) {
+    const base = raw && typeof raw === 'object' ? raw : {};
+    const legacyWidth = clampNumber(base.width, 40, 120, 56);
+    const legacyHeight = clampNumber(base.height, 40, 120, 56);
+    const derivedSize = clampNumber(base.size, 40, 120, Math.max(legacyWidth, legacyHeight));
+    return {
+        enabled: base.enabled !== false,
+        showTopbar: !!base.showTopbar,
+        showFullscreen: !!base.showFullscreen,
+        stickToEdgeVisible: !!base.stickToEdgeVisible,
+        opacity: clampNumber(base.opacity, 20, 100, 100),
+        radius: clampNumber(base.radius, 0, 32, 20),
+        size: derivedSize,
+    };
+}
+
 function cloneSettingsValue(value) {
     try {
         return JSON.parse(JSON.stringify(value));
@@ -114,6 +136,7 @@ eventSource.on(event_types.APP_READY, async () => {
         loadSettings();
         initTabs();
         initMainPanel();
+        initToyNav();
         initGuides();
         initCopyable();
 
@@ -185,8 +208,9 @@ function loadSettings() {
     settings.globalBeautify = saved.globalBeautify || { items: [] };
     settings.phone = saved.phone || { enabled: false, hideMobileStatusBar: false };
     if (RELEASE_MODE) settings.phone.enabled = false;
-    settings.floatingBall = saved.floatingBall || { enabled: true, showTopbar: false, showFullscreen: false };
-    settings.longScreenshot = saved.longScreenshot || { enabled: true };
+    settings.floatingBall = normalizeFloatingBallSettings(saved.floatingBall);
+    settings.longScreenshot = saved.longScreenshot || { enabled: false };
+    if (typeof settings.longScreenshot.enabled !== 'boolean') settings.longScreenshot.enabled = false;
     // select-sheet 持久化字段恢复（之前漏读，导致升级后收藏丢失）
     settings.selectSheet = saved.selectSheet || { mobileEnabled: true, pcEnabled: true };
     settings.selectFavs  = saved.selectFavs  || {};
@@ -214,6 +238,14 @@ function syncToggleUI() {
     const floatBall = document.getElementById('ggg-floating-ball-enable');
     const floatTopbar = document.getElementById('ggg-floating-ball-show-topbar');
     const floatFullscreen = document.getElementById('ggg-floating-ball-show-fullscreen');
+    const floatStickVisible = document.getElementById('ggg-floating-ball-stick-visible');
+    const floatOpacity = document.getElementById('ggg-floating-ball-opacity');
+    const floatOpacityNumber = document.getElementById('ggg-floating-ball-opacity-number');
+    const floatRadius = document.getElementById('ggg-floating-ball-radius');
+    const floatRadiusNumber = document.getElementById('ggg-floating-ball-radius-number');
+    const floatSize = document.getElementById('ggg-floating-ball-size');
+    const floatSizeNumber = document.getElementById('ggg-floating-ball-size-number');
+    settings.floatingBall = normalizeFloatingBallSettings(settings.floatingBall);
     if (master)   master.checked   = settings.enabled;
     if (beautify) beautify.checked = settings.beautifyEnabled;
     if (tools)    tools.checked    = settings.toolsEnabled;
@@ -221,6 +253,13 @@ function syncToggleUI() {
     if (floatBall) floatBall.checked = settings.floatingBall?.enabled !== false;
     if (floatTopbar) floatTopbar.checked = !!settings.floatingBall?.showTopbar;
     if (floatFullscreen) floatFullscreen.checked = !!settings.floatingBall?.showFullscreen;
+    if (floatStickVisible) floatStickVisible.checked = !!settings.floatingBall?.stickToEdgeVisible;
+    if (floatOpacity) floatOpacity.value = String(settings.floatingBall?.opacity ?? 100);
+    if (floatOpacityNumber) floatOpacityNumber.value = String(settings.floatingBall?.opacity ?? 100);
+    if (floatRadius) floatRadius.value = String(settings.floatingBall?.radius ?? 20);
+    if (floatRadiusNumber) floatRadiusNumber.value = String(settings.floatingBall?.radius ?? 20);
+    if (floatSize) floatSize.value = String(settings.floatingBall?.size ?? 56);
+    if (floatSizeNumber) floatSizeNumber.value = String(settings.floatingBall?.size ?? 56);
 
     const featureSection = document.getElementById('ggg-feature-toggles-section');
     if (featureSection) featureSection.style.display = settings.enabled ? '' : 'none';
@@ -291,6 +330,28 @@ function initTabs() {
     });
 }
 
+function initToyNav() {
+    const nav = document.getElementById('ggg-toys-nav');
+    if (!nav) return;
+
+    const setActiveToyTab = (tabName) => {
+        nav.querySelectorAll('.ggg-tools-nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.toyTab === tabName);
+        });
+        document.querySelectorAll('#ggg-panel-achievement .ggg-tools-subpanel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        document.getElementById(`ggg-toy-panel-${tabName}`)?.classList.add('active');
+    };
+
+    nav.querySelectorAll('.ggg-tools-nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const currentKey = item.dataset.toyTab || '';
+            setActiveToyTab(currentKey);
+        });
+    });
+}
+
 // ============================================================
 // 美化面板导航栏（Phase 4）
 // ============================================================
@@ -312,6 +373,27 @@ function initMainPanel() {
     const notifyFloatingBallChanged = () => {
         syncToggleUI();
         window.dispatchEvent(new CustomEvent('ggg-floating-ball-config-changed'));
+    };
+    const ensureFloatingBallSettings = () => {
+        settings.floatingBall = normalizeFloatingBallSettings(settings.floatingBall);
+    };
+    const bindFloatingBallNumberInput = (rangeId, numberId, key, min, max, fallback) => {
+        const rangeEl = document.getElementById(rangeId);
+        const numberEl = document.getElementById(numberId);
+        if (!rangeEl || !numberEl) return;
+        const apply = (value) => {
+            if (value === '') return;
+            ensureFloatingBallSettings();
+            const normalized = clampNumber(value, min, max, fallback);
+            settings.floatingBall[key] = normalized;
+            rangeEl.value = String(normalized);
+            numberEl.value = String(normalized);
+            saveAllSettings();
+            notifyFloatingBallChanged();
+        };
+        rangeEl.addEventListener('input', (e) => apply(e.target.value));
+        numberEl.addEventListener('input', (e) => apply(e.target.value));
+        numberEl.addEventListener('change', (e) => apply(e.target.value));
     };
 
     document.getElementById('ggg-master-toggle')?.addEventListener('change', (e) => {
@@ -348,25 +430,36 @@ function initMainPanel() {
     });
 
     document.getElementById('ggg-floating-ball-enable')?.addEventListener('change', (e) => {
-        if (!settings.floatingBall) settings.floatingBall = {};
+        ensureFloatingBallSettings();
         settings.floatingBall.enabled = e.target.checked;
         saveAllSettings();
         notifyFloatingBallChanged();
     });
 
     document.getElementById('ggg-floating-ball-show-topbar')?.addEventListener('change', (e) => {
-        if (!settings.floatingBall) settings.floatingBall = {};
+        ensureFloatingBallSettings();
         settings.floatingBall.showTopbar = e.target.checked;
         saveAllSettings();
         notifyFloatingBallChanged();
     });
 
     document.getElementById('ggg-floating-ball-show-fullscreen')?.addEventListener('change', (e) => {
-        if (!settings.floatingBall) settings.floatingBall = {};
+        ensureFloatingBallSettings();
         settings.floatingBall.showFullscreen = e.target.checked;
         saveAllSettings();
         notifyFloatingBallChanged();
     });
+
+    document.getElementById('ggg-floating-ball-stick-visible')?.addEventListener('change', (e) => {
+        ensureFloatingBallSettings();
+        settings.floatingBall.stickToEdgeVisible = e.target.checked;
+        saveAllSettings();
+        notifyFloatingBallChanged();
+    });
+
+    bindFloatingBallNumberInput('ggg-floating-ball-opacity', 'ggg-floating-ball-opacity-number', 'opacity', 20, 100, 100);
+    bindFloatingBallNumberInput('ggg-floating-ball-radius', 'ggg-floating-ball-radius-number', 'radius', 0, 32, 20);
+    bindFloatingBallNumberInput('ggg-floating-ball-size', 'ggg-floating-ball-size-number', 'size', 40, 120, 56);
 }
 
 // ============================================================

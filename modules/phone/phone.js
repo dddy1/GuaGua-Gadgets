@@ -24,6 +24,8 @@ import {
     scanCustomPhoneTimeFromLatest,
     setPhoneTimeMode,
 } from './core/phone-time.js';
+import { isFullscreen, enterFullscreen, exitFullscreen, enablePersistentFullscreen, disablePersistentFullscreen, markFullscreenRestoreNeeded } from './shell/browser-fullscreen.js';
+import { setupOverlayGuard, teardownOverlayGuard } from './shell/overlay-guard.js';
 
 let vueApp = null;
 let _phoneInitialized = false;
@@ -44,6 +46,8 @@ export function initPhone() {
     if (typeof p.alwaysFullscreen !== 'boolean') p.alwaysFullscreen = true;
     if (!THEMES.includes(p.theme)) p.theme = 'dark';
     if (typeof p.backgroundUrl !== 'string') p.backgroundUrl = '';
+    if (typeof p.fsFixDialog !== 'boolean') p.fsFixDialog = true;
+    if (typeof p.fsFixInput !== 'boolean') p.fsFixInput = true;
     if (RELEASE_MODE) p.enabled = false;
     ensurePhoneTimeSettings();
     registerPhoneTimeMacro();
@@ -140,6 +144,23 @@ function bindSettingUI() {
             if (timeModeEl?.value === 'custom') runTimeScan();
         }));
     if (timeScanBtn) timeScanBtn.addEventListener('click', runTimeScan);
+
+    const fsFixDialogEl = document.getElementById('ggg-fs-fix-dialog');
+    const fsFixInputEl = document.getElementById('ggg-fs-fix-input');
+    if (fsFixDialogEl) {
+        fsFixDialogEl.checked = !!settings.phone.fsFixDialog;
+        fsFixDialogEl.addEventListener('change', () => {
+            settings.phone.fsFixDialog = fsFixDialogEl.checked;
+            saveAllSettings();
+        });
+    }
+    if (fsFixInputEl) {
+        fsFixInputEl.checked = !!settings.phone.fsFixInput;
+        fsFixInputEl.addEventListener('change', () => {
+            settings.phone.fsFixInput = fsFixInputEl.checked;
+            saveAllSettings();
+        });
+    }
 }
 function applyEnabledState() {
     unmountPPPreviewNotifier();
@@ -155,16 +176,11 @@ function applyEnabledState() {
     if (settings.phone?.enabled) {
         mountPPPreviewNotifier({ onOpenPPChat: openPPChatFromPreview });
         applyMobileStatusBarPolicy();
-        // v0.2.30：彻底取消把 TopInfoBar 推 36px 的做法——
-        //   旧实现导致 PC 端 TopInfoBar 与 #top-bar 之间留 36px 空隙，
-        //   且因为 transform 残留还会和 topbar 产生层叠/遮挡问题。
-        //   现在让 TopInfoBar 走酒馆默认布局（紧贴 #top-bar 之下），
-        // v0.2.42：启动全屏键盘补偿
-        setupFullscreenKeyboardFix();
     } else {
         if (isPhoneShellOpen()) exitPhone();
-        teardownFullscreenKeyboardFix();
     }
+
+    setupDialogFullscreenWorkaround();
 }
 
 function openPPChatFromPreview(target) {
@@ -175,6 +191,218 @@ function openPPChatFromPreview(target) {
         return;
     }
     enterPhone();
+}
+
+let _dialogFsCleanup = null;
+function setupDialogFullscreenWorkaround() {
+    if (_dialogFsCleanup) return;
+    let closeObserver = null;
+    let overlayWatchTimer = 0;
+    let watchedOverlay = null;
+    let exitedForDialog = false;
+    let exitedForInput = false;
+    let inputRestoreTimer = 0;
+    let lastTextareaInteraction = { key: '', at: 0 };
+    const TEXTAREA_LINK_TTL = 15_000;
+
+    function isDialogOverlay(el) {
+        return !!(el instanceof Element && el.matches?.('dialog[open], [role="dialog"]'));
+    }
+
+    function findDialogOverlay(el) {
+        return el?.closest?.('dialog[open], [role="dialog"]') || null;
+    }
+
+    function isTextLikeInput(el) {
+        if (!(el instanceof HTMLInputElement)) return false;
+        const type = (el.type || 'text').toLowerCase();
+        return ![
+            'button',
+            'checkbox',
+            'color',
+            'file',
+            'hidden',
+            'image',
+            'radio',
+            'range',
+            'reset',
+            'submit',
+        ].includes(type);
+    }
+
+    function getTextareaLinkKey(el) {
+        if (!(el instanceof HTMLTextAreaElement)) return '';
+        const key = el.getAttribute('data-for') || el.id || el.name || '';
+        return String(key).trim();
+    }
+
+    function rememberTextareaInteraction(el) {
+        const key = getTextareaLinkKey(el);
+        if (!key) return;
+        lastTextareaInteraction = { key, at: Date.now() };
+    }
+
+    function hasRecentTextareaInteraction(key) {
+        return !!key
+            && lastTextareaInteraction.key === key
+            && Date.now() - lastTextareaInteraction.at <= TEXTAREA_LINK_TTL;
+    }
+
+    function findMatchingDialogTextarea(dialog) {
+        if (!(dialog instanceof Element)) return null;
+        const textareas = dialog.querySelectorAll('textarea');
+        for (const ta of textareas) {
+            const key = getTextareaLinkKey(ta);
+            if (hasRecentTextareaInteraction(key)) return ta;
+        }
+        return null;
+    }
+
+    function isOverlayClosed(overlay) {
+        if (!overlay || !overlay.isConnected) return true;
+        if (overlay.tagName === 'DIALOG' && !overlay.open) return true;
+        const style = window.getComputedStyle?.(overlay);
+        if (!style) return false;
+        return style.display === 'none'
+            || style.visibility === 'hidden'
+            || Number(style.opacity || '1') <= 0.01;
+    }
+
+    async function restoreFullscreenFromDialog() {
+        if (!exitedForDialog) return;
+        exitedForDialog = false;
+        watchedOverlay = null;
+        if (overlayWatchTimer) {
+            clearInterval(overlayWatchTimer);
+            overlayWatchTimer = 0;
+        }
+        const ok = await enterFullscreen();
+        if (!ok) markFullscreenRestoreNeeded();
+    }
+
+    function watchOverlayClose(overlay) {
+        if (closeObserver) closeObserver.disconnect();
+        if (overlayWatchTimer) clearInterval(overlayWatchTimer);
+        watchedOverlay = overlay;
+        closeObserver = new MutationObserver(async () => {
+            if (isOverlayClosed(overlay) && exitedForDialog) {
+                closeObserver.disconnect();
+                closeObserver = null;
+                await restoreFullscreenFromDialog();
+            }
+        });
+        closeObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'open'],
+        });
+        overlayWatchTimer = setInterval(() => {
+            if (watchedOverlay === overlay && isOverlayClosed(overlay) && exitedForDialog) {
+                closeObserver?.disconnect();
+                closeObserver = null;
+                void restoreFullscreenFromDialog();
+            }
+        }, 200);
+    }
+
+    function exitForLinkedDialog(dialog) {
+        if (!isFullscreen() || !settings.phone?.fsFixDialog || exitedForDialog) return false;
+        if (!isDialogOverlay(dialog)) return false;
+        const matchedTextarea = findMatchingDialogTextarea(dialog);
+        if (!matchedTextarea) return false;
+        if (exitedForInput) {
+            clearTimeout(inputRestoreTimer);
+            exitedForInput = false;
+        }
+        exitFullscreen();
+        exitedForDialog = true;
+        watchOverlayClose(dialog);
+        return true;
+    }
+
+    const exitForDialogTextarea = (el) => {
+        if (!isFullscreen() || !settings.phone?.fsFixDialog || exitedForDialog) return false;
+        if (!el || el.tagName !== 'TEXTAREA') return false;
+        rememberTextareaInteraction(el);
+        const overlay = findDialogOverlay(el);
+        if (!overlay || !isDialogOverlay(overlay)) return false;
+        if (exitedForInput) {
+            clearTimeout(inputRestoreTimer);
+            exitedForInput = false;
+        }
+        exitFullscreen();
+        exitedForDialog = true;
+        watchOverlayClose(overlay);
+        return true;
+    };
+
+    const onPointerDown = (e) => {
+        if (e.target instanceof HTMLTextAreaElement) rememberTextareaInteraction(e.target);
+        exitForDialogTextarea(e.target);
+    };
+
+    const onFocusIn = (e) => {
+        const el = e.target;
+        if (el instanceof HTMLTextAreaElement) rememberTextareaInteraction(el);
+        if (exitForDialogTextarea(el)) {
+            return;
+        }
+
+        if (!isFullscreen()) return;
+        if (!settings.phone?.fsFixInput) return;
+        if (!isTextLikeInput(el)) return;
+        if (exitedForDialog || exitedForInput) return;
+        clearTimeout(inputRestoreTimer);
+        exitFullscreen();
+        exitedForInput = true;
+    };
+
+    const onDialogMutated = (mutations) => {
+        if (!isFullscreen() || !settings.phone?.fsFixDialog || exitedForDialog) return;
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (!(node instanceof Element)) continue;
+                if (isDialogOverlay(node) && exitForLinkedDialog(node)) return;
+                const nestedDialog = node.querySelector?.('dialog[open], [role="dialog"]');
+                if (nestedDialog && exitForLinkedDialog(nestedDialog)) return;
+            }
+        }
+    };
+
+    const bodyObserver = new MutationObserver(onDialogMutated);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+    const onFocusOut = (e) => {
+        if (!exitedForInput) return;
+        const el = e.target;
+        if (!isTextLikeInput(el)) return;
+        clearTimeout(inputRestoreTimer);
+        inputRestoreTimer = setTimeout(async () => {
+            if (!exitedForInput) return;
+            exitedForInput = false;
+            const ok = await enterFullscreen();
+            if (!ok) markFullscreenRestoreNeeded();
+        }, 300);
+    };
+
+    document.addEventListener('focusin', onFocusIn, true);
+    document.addEventListener('focusout', onFocusOut, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    _dialogFsCleanup = () => {
+        document.removeEventListener('focusin', onFocusIn, true);
+        document.removeEventListener('focusout', onFocusOut, true);
+        document.removeEventListener('pointerdown', onPointerDown, true);
+        bodyObserver.disconnect();
+        if (closeObserver) { closeObserver.disconnect(); closeObserver = null; }
+        if (overlayWatchTimer) {
+            clearInterval(overlayWatchTimer);
+            overlayWatchTimer = 0;
+        }
+        watchedOverlay = null;
+        clearTimeout(inputRestoreTimer);
+        _dialogFsCleanup = null;
+    };
 }
 
 function applyMobileStatusBarPolicy() {
@@ -193,249 +421,23 @@ function applyMobileStatusBarPolicy() {
         : base;
 }
 
-/* ============================================================
- * v0.2.42：浏览器全屏（三击）下的键盘补偿
- * 全屏时 interactive-widget 可能失效，layout viewport 不缩，
- * 主动监听 visualViewport，把 #sheld 高度压成 vv.height，
- * 这样 #form_sheld 会自动浮到键盘上方。
- * ============================================================ */
-let _vvHandler = null;
-const KB_STYLE_ID = 'ggg-fullscreen-kb-style';
-const EXTERNAL_OVERLAY_CLASS = 'ggg-phone-external-overlay-open';
-const EXTERNAL_OVERLAY_SELECTORS = [
-    '#shadow_popup',
-    '#dialogue_popup',
-    '.dialogue_popup',
-    '.popup',
-    '.popup-container',
-    '.popup_container',
-    '.modal',
-    '.drawer',
-    '.drawer-content',
-    '.drawer-content-open',
-    '.textarea_companion',
-    '.expanded_textarea',
-    'textarea.expanded_textarea',
-    'body > textarea',
-];
-const INTERNAL_OVERLAY_SELECTORS = [
-    '#ggg-phone-shell',
-    '#ggg-floating-ball',
-    '#ggg-floating-ball-panel',
-    '.ggg-wi-overlay',
-    '.ggg-wi-sheet',
-    '.ggg-ss-overlay',
-    '.ggg-ss-sheet',
-    '#ggg-longshot-range-panel',
-];
-
-let _externalOverlayObserver = null;
-let _externalOverlayRefresh = null;
-
-function _isFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement);
-}
-function _kbApply(kbH) {
-    let s = document.getElementById(KB_STYLE_ID);
-    if (!s) {
-        s = document.createElement('style');
-        s.id = KB_STYLE_ID;
-        document.head.appendChild(s);
-    }
-    s.textContent = kbH > 50
-        ? `#sheld { bottom: ${kbH}px !important; transition: bottom .15s ease; }
-           #form_sheld { bottom: ${kbH}px !important; transition: bottom .15s ease; }`
-        : '';
-}
-function _kbCheck() {
-    if (!_isFullscreen()) { _kbApply(0); return; }
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const kb = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
-    _kbApply(kb);
-}
-function setupFullscreenKeyboardFix() {
-    if (_vvHandler || !window.visualViewport) return;
-    _vvHandler = () => _kbCheck();
-    window.visualViewport.addEventListener('resize', _vvHandler);
-    window.visualViewport.addEventListener('scroll', _vvHandler);
-    document.addEventListener('fullscreenchange', _vvHandler);
-    document.addEventListener('webkitfullscreenchange', _vvHandler);
-}
-function teardownFullscreenKeyboardFix() {
-    if (_vvHandler && window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', _vvHandler);
-        window.visualViewport.removeEventListener('scroll', _vvHandler);
-    }
-    document.removeEventListener('fullscreenchange', _vvHandler);
-    document.removeEventListener('webkitfullscreenchange', _vvHandler);
-    _vvHandler = null;
-    document.getElementById(KB_STYLE_ID)?.remove();
-}
-
-function isInternalOverlay(el) {
-    return INTERNAL_OVERLAY_SELECTORS.some(sel => el.matches?.(sel) || el.closest?.(sel));
-}
-
-// 酒馆/插件弹层的 class/id 不完全稳定，除固定选择器外再用命名特征兜住 textarea 弹窗等变体。
-function hasOverlayLikeName(el) {
-    const text = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`.toLowerCase();
-    return /popup|dialog|modal|drawer|textarea_companion|expanded_textarea/.test(text);
-}
-
-// 外部弹层检测不能只查固定选择器：部分 textarea 展开层会换 class 或嵌套在 body 子节点里。
-// 同时排除呱呱自己的手机壳、底部 sheet、悬浮球，避免误把内部控件当成外部弹窗。
-function collectExternalOverlayCandidates() {
-    const set = new Set();
-    EXTERNAL_OVERLAY_SELECTORS.forEach(sel => {
-        try { document.querySelectorAll(sel).forEach(el => set.add(el)); } catch {}
-    });
-    document.querySelectorAll('body > *, body > * *').forEach(el => {
-        if (!(el instanceof Element)) return;
-        if (isInternalOverlay(el)) return;
-        if (el.matches?.('dialog, [role="dialog"], [aria-modal="true"]') || hasOverlayLikeName(el)) {
-            set.add(el);
-        }
-    });
-    return Array.from(set);
-}
-
-// 只要发现可见的酒馆弹层，就让手机壳/悬浮球让出点击层；全屏状态本身不改变。
-function isVisibleExternalOverlay(el) {
-    if (!el || !(el instanceof Element)) return false;
-    const shell = document.getElementById('ggg-phone-shell');
-    if (shell && shell.contains(el)) return false;
-    if (isInternalOverlay(el)) return false;
-    const style = window.getComputedStyle?.(el);
-    if (!style) return false;
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
-    if (Number(style.opacity || '1') <= 0.01) return false;
-    const rect = el.getBoundingClientRect?.();
-    if (!rect || rect.width < 1 || rect.height < 1) return false;
-
-    const isExplicitPopup = ['shadow_popup', 'dialogue_popup'].includes(el.id)
-        || el.matches?.('body > .popup, body > .popup-container, body > .popup_container, body > .popup_wrapper, body > .popup-wrapper, body > .dialogue_popup, body > .drawer, body > .drawer-content, body > .textarea_companion, body > .expanded_textarea, body > textarea, body > textarea.expanded_textarea, .textarea_companion, .expanded_textarea, textarea.expanded_textarea');
-    if (isExplicitPopup) return true;
-
-    const zIndex = Number.parseInt(style.zIndex, 10);
-    const hasOverlayLayer = Number.isFinite(zIndex) && zIndex >= 1000;
-    const isOverlayPosition = ['fixed', 'absolute', 'sticky'].includes(style.position);
-    return (hasOverlayLayer && isOverlayPosition) || (hasOverlayLikeName(el) && isOverlayPosition);
-}
-
-function refreshExternalOverlayState() {
-    const html = document.documentElement;
-    if (!html.classList.contains('ggg-phone-open')) {
-        html.classList.remove(EXTERNAL_OVERLAY_CLASS);
-        return;
-    }
-    const hasOverlay = collectExternalOverlayCandidates().some(isVisibleExternalOverlay);
-    html.classList.toggle(EXTERNAL_OVERLAY_CLASS, hasOverlay);
-}
-
-function setupExternalOverlayGuard() {
-    teardownExternalOverlayGuard();
-    _externalOverlayRefresh = () => {
-        try { refreshExternalOverlayState(); } catch {}
-        // 有些弹层先插 DOM、下一帧才写入尺寸/层级，延迟复查能避免首轮漏判。
-        requestAnimationFrame(() => {
-            try { refreshExternalOverlayState(); } catch {}
-        });
-        setTimeout(() => {
-            try { refreshExternalOverlayState(); } catch {}
-        }, 120);
-    };
-    _externalOverlayObserver = new MutationObserver(_externalOverlayRefresh);
-    _externalOverlayObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style', 'hidden', 'open'],
-    });
-    document.addEventListener('focusin', _externalOverlayRefresh, true);
-    window.addEventListener('resize', _externalOverlayRefresh, { passive: true });
-    window.visualViewport?.addEventListener('resize', _externalOverlayRefresh, { passive: true });
-    window.visualViewport?.addEventListener('scroll', _externalOverlayRefresh, { passive: true });
-    _externalOverlayRefresh();
-}
-
-function teardownExternalOverlayGuard() {
-    _externalOverlayObserver?.disconnect();
-    _externalOverlayObserver = null;
-    if (_externalOverlayRefresh) {
-        document.removeEventListener('focusin', _externalOverlayRefresh, true);
-        window.removeEventListener('resize', _externalOverlayRefresh);
-        window.visualViewport?.removeEventListener('resize', _externalOverlayRefresh);
-        window.visualViewport?.removeEventListener('scroll', _externalOverlayRefresh);
-    }
-    _externalOverlayRefresh = null;
-    document.documentElement.classList.remove(EXTERNAL_OVERLAY_CLASS);
-}
-
-// v0.2.17：记录进入手机前酒馆是否已是浏览器全屏，决定退出时要不要解除全屏
-let _wasFullscreenBefore = false;
-let _restoreFullscreenOnGesture = false;
-
-function getFullscreenElement() {
-    return document.fullscreenElement || document.webkitFullscreenElement
-        || document.mozFullScreenElement || document.msFullscreenElement || null;
-}
-
-function requestPhoneBrowserFullscreen() {
-    const docEl = document.documentElement;
-    const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen
-        || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-    if (!req || getFullscreenElement()) return Promise.resolve();
-    try {
-        const ret = req.call(docEl);
-        return ret?.catch ? ret.catch(() => {}) : Promise.resolve();
-    } catch (e) {
-        return Promise.resolve();
-    }
-}
-
-function shouldKeepPhoneFullscreen() {
-    return isPhoneShellOpen()
-        && settings.phone?.alwaysFullscreen
-        && !isPcMode();
-}
-
-function markFullscreenRestoreNeeded() {
-    if (!shouldKeepPhoneFullscreen()) {
-        _restoreFullscreenOnGesture = false;
-        return;
-    }
-    if (!getFullscreenElement()) _restoreFullscreenOnGesture = true;
-}
-
-async function restoreFullscreenFromGesture() {
-    if (_externalOverlayRefresh) _externalOverlayRefresh();
-    if (!_restoreFullscreenOnGesture || !shouldKeepPhoneFullscreen() || getFullscreenElement()) return;
-    _restoreFullscreenOnGesture = false;
-    await requestPhoneBrowserFullscreen();
-}
-
-['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
-    document.addEventListener(evt, restoreFullscreenFromGesture, true);
-});
-document.addEventListener('fullscreenchange', markFullscreenRestoreNeeded);
-document.addEventListener('webkitfullscreenchange', markFullscreenRestoreNeeded);
+let _wasFullscreenBeforePhone = false;
 
 export async function enterPhone() {
     if (RELEASE_MODE) return;
     if (!settings.phone?.enabled) return;
     if (isPhoneShellOpen()) return;
 
-    _wasFullscreenBefore = !!getFullscreenElement();
+    _wasFullscreenBeforePhone = isFullscreen();
     scanCustomPhoneTimeFromLatest({ force: true });
 
     mountPhoneShell();
     window.dispatchEvent(new CustomEvent('ggg-phone-open-changed', { detail: { open: true } }));
-    setupExternalOverlayGuard();
+    setupOverlayGuard();
 
-    // 先挂壳，再异步请求全屏，避免某些浏览器/移动端模拟把进入流程卡住。
+    // 移动端 + 设置启用 → 开启持久全屏
     if (settings.phone?.alwaysFullscreen && !isPcMode()) {
-        requestPhoneBrowserFullscreen().catch?.(() => {});
+        await enablePersistentFullscreen();
     }
 
     // 状态栏 + 主题 + 背景
@@ -481,20 +483,15 @@ export async function exitPhone() {
         vueApp = null;
     }
     unmountStatusBar();
-    teardownExternalOverlayGuard();
+    teardownOverlayGuard();
+    disablePersistentFullscreen();
     unmountPhoneShell();
     window.dispatchEvent(new CustomEvent('ggg-phone-open-changed', { detail: { open: false } }));
 
-    // v0.2.17：只有进入手机前酒馆"不是"全屏时，退出手机才解除全屏；
-    //   如果用户进入手机前就在全屏看酒馆，退出时保持全屏
-    if (!_wasFullscreenBefore) {
-        try {
-            const exit = document.exitFullscreen || document.webkitExitFullscreen
-                || document.mozCancelFullScreen || document.msExitFullscreen;
-            if (exit && getFullscreenElement()) {
-                exit.call(document).catch(() => {});
-            }
-        } catch (e) {}
+    // 进入手机前酒馆不是全屏 → 退出手机时也退出全屏；否则保持全屏
+    if (!_wasFullscreenBeforePhone && isFullscreen()) {
+        const fn = document.exitFullscreen || document.webkitExitFullscreen;
+        if (fn) try { await fn.call(document); } catch {}
     }
 }
 

@@ -51,6 +51,39 @@ html.ggg-phone-topbar-hidden #extensionTopBar {
     overscroll-behavior: none;
     touch-action: manipulation;
 }
+/* 全屏过渡时 ::backdrop 默认纯黑，改为透明消除"黑一下"的视觉冲击 */
+html:fullscreen::backdrop,
+html:-webkit-full-screen::backdrop {
+    background: transparent !important;
+}
+/* translateZ(0) / backface-visibility:hidden 等 GPU 合成 hack 会让元素
+   成为 position:fixed 的包含块，导致弹窗、自动填充栏定位错误。
+   逐一压掉酒馆及弹窗系统中的相关属性。 */
+html,
+#WorldInfo,
+#floatingPrompt {
+    -webkit-transform: none !important;
+    transform: none !important;
+    -webkit-perspective: none !important;
+    perspective: none !important;
+    -webkit-backface-visibility: visible !important;
+    backface-visibility: visible !important;
+}
+/* 酒馆弹窗的 popup-body 和 popup-content 都是 overflow:hidden，
+   移动端软键盘弹出时 dialog 通过 max-height 缩小，textarea 被裁掉且无法滚动。
+   改为 auto 让内容可滚动。 */
+.popup .popup-body,
+.popup .popup-content {
+    overflow-y: auto !important;
+}
+/* 酒馆 mobile-styles.css 在 ≤1000px 时设 body { position:fixed; overflow:hidden }
+   来锁定滚动。但这在全屏模式下导致：
+   · showModal() 的 <dialog> 在键盘弹出时整个消失（Chrome 渲染 bug）
+   · 浏览器原生自动填充栏定位错误
+   改为 position:static 并用 overflow:hidden 替代滚动锁定。 */
+body {
+    position: static !important;
+}
 html.ggg-phone-open:not(.ggg-phone-pc),
 html.ggg-phone-open:not(.ggg-phone-pc) body {
     width: 100vw !important;
@@ -350,8 +383,6 @@ html.ggg-phone-open:not(.ggg-phone-pc) #sheld {
 }
 html.ggg-floating-ball-mounted,
 html.ggg-floating-ball-mounted body {
-    overflow-x: hidden !important;
-    max-width: 100vw !important;
     overscroll-behavior-x: none !important;
 }
 #ggg-floating-ball.edge-snap {
@@ -376,8 +407,8 @@ html.ggg-floating-ball-mounted body {
 .ggg-floating-ball-frog::after {
     content: "";
     position: absolute;
-    inset: 0;
-    margin: auto;
+    left: 50%;
+    top: 50%;
     mask-image: var(--frog-svg);
     -webkit-mask-image: var(--frog-svg);
     mask-repeat: no-repeat;
@@ -388,15 +419,16 @@ html.ggg-floating-ball-mounted body {
     -webkit-mask-size: contain;
 }
 .ggg-floating-ball-frog::before {
-    width: 31px;
-    height: 31px;
+    width: 82%;
+    height: 82%;
     background: #fff;
+    transform: translate(-50%, -50%);
 }
 .ggg-floating-ball-frog::after {
-    width: 27px;
-    height: 27px;
+    width: 71%;
+    height: 71%;
     background: var(--SmartThemeEmColor, #7ccf90);
-    transform: translateY(2px);
+    transform: translate(-50%, -50%);
 }
 #ggg-floating-ball-panel {
     position: fixed;
@@ -5473,11 +5505,16 @@ html.ggg-phone-open body > .drawer-content * {
 html.ggg-phone-open :is(.textarea_companion, .expanded_textarea, textarea.expanded_textarea) {
     z-index: 2147483647 !important;
 }
-
-/* 外部弹层打开时，临时让出手机壳，避免全屏态下弹窗被壳子压住或点击被壳子截走。 */
-html.ggg-phone-open.ggg-phone-external-overlay-open #ggg-phone-shell,
-html.ggg-phone-open.ggg-phone-external-overlay-open #ggg-floating-ball,
-html.ggg-phone-open.ggg-phone-external-overlay-open #ggg-floating-ball-panel {
-    opacity: 0 !important;
+html.ggg-phone-open :is(.textarea_companion, .expanded_textarea, textarea.expanded_textarea),
+html.ggg-phone-open :is(.textarea_companion, .expanded_textarea, textarea.expanded_textarea) * {
+    pointer-events: auto !important;
+}
+html.ggg-phone-external-overlay-open #ggg-phone-shell,
+html.ggg-phone-external-overlay-open #ggg-floating-ball,
+html.ggg-phone-external-overlay-open #ggg-floating-ball-panel {
     pointer-events: none !important;
+}
+html.ggg-phone-external-overlay-open.ggg-phone-external-drawer-open #ggg-floating-ball {
+    z-index: 2147483647 !important;
+    pointer-events: auto !important;
 }

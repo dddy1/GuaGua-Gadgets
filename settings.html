@@ -77,13 +77,36 @@
                         style="margin-top: 8px;"
                     >
                         <label class="ggg-toggle-label ggg-toggle-sub">
-                            <input type="checkbox" id="ggg-floating-ball-show-topbar" />
-                            <span>隐藏顶栏</span>
+                            <input type="checkbox" id="ggg-floating-ball-stick-visible" />
+                            <span>贴边不隐藏</span>
                         </label>
-                        <label class="ggg-toggle-label ggg-toggle-sub">
-                            <input type="checkbox" id="ggg-floating-ball-show-fullscreen" />
-                            <span>全屏</span>
-                        </label>
+                        <details class="ggg-floating-ball-config-block">
+                            <summary class="ggg-floating-ball-config-title">修改悬浮球设置</summary>
+                            <label class="ggg-floating-ball-config-row">
+                                <span class="ggg-floating-ball-config-label">透明度</span>
+                                <div class="ggg-floating-ball-config-inputs">
+                                    <input type="range" id="ggg-floating-ball-opacity" min="20" max="100" step="1" />
+                                    <input type="number" id="ggg-floating-ball-opacity-number" min="20" max="100" step="1" />
+                                    <span class="ggg-floating-ball-config-unit">%</span>
+                                </div>
+                            </label>
+                            <label class="ggg-floating-ball-config-row">
+                                <span class="ggg-floating-ball-config-label">圆角</span>
+                                <div class="ggg-floating-ball-config-inputs">
+                                    <input type="range" id="ggg-floating-ball-radius" min="0" max="32" step="1" />
+                                    <input type="number" id="ggg-floating-ball-radius-number" min="0" max="32" step="1" />
+                                    <span class="ggg-floating-ball-config-unit">px</span>
+                                </div>
+                            </label>
+                            <label class="ggg-floating-ball-config-row">
+                                <span class="ggg-floating-ball-config-label">球尺寸</span>
+                                <div class="ggg-floating-ball-config-inputs">
+                                    <input type="range" id="ggg-floating-ball-size" min="40" max="120" step="1" />
+                                    <input type="number" id="ggg-floating-ball-size-number" min="40" max="120" step="1" />
+                                    <span class="ggg-floating-ball-config-unit">px</span>
+                                </div>
+                            </label>
+                        </details>
                     </div>
                 </div>
 
@@ -943,7 +966,7 @@
                     <button class="ggg-tools-nav-item" type="button" data-tool-tab="memo">
                         <i class="ggg-fa fa-solid fa-note-sticky"></i> 备忘录
                     </button>
-                    <button class="ggg-tools-nav-item" type="button" data-tool-tab="longshot">
+                    <button class="ggg-tools-nav-item" type="button" data-tool-tab="longshot" id="ggg-tool-longshot-nav" style="display:none;">
                         <i class="ggg-fa fa-solid fa-camera"></i> 长截图
                     </button>
                 </div>
@@ -1026,7 +1049,7 @@
                             从当前滚动位置开始，选择当前酒馆标签页后自动分段截图并滚动。点击浮动的“结束并保存”会在当前位置收尾；滚到底也会自动保存。
                         </div>
                         <label class="ggg-toggle-label ggg-longshot-option">
-                            <input type="checkbox" id="ggg-longshot-enable-float-entry" checked>
+                            <input type="checkbox" id="ggg-longshot-enable-float-entry">
                             <span>在悬浮球面板里显示“长截图”</span>
                         </label>
                         <div class="ggg-longshot-actions">
@@ -1052,35 +1075,102 @@
                 </div>
             </div>
 
-            <!-- 占位面板 -->
             <div id="ggg-panel-achievement" class="ggg-panel">
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
+                <div class="ggg-tools-nav" id="ggg-toys-nav">
+                    <button class="ggg-tools-nav-item active" type="button" data-toy-tab="fullscreen">
+                        <i class="ggg-fa fa-solid fa-expand"></i> 全屏
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-toy-tab="achievement">
                         <i class="ggg-fa fa-solid fa-trophy"></i> 成就
-                    </div>
-                    <div class="ggg-empty-state" style="padding: 12px">
-                        <div>成就系统 - 开发中</div>
-                    </div>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
-                        <i class="ggg-fa fa-solid fa-masks-theater"></i>
-                        终幕演出
-                    </div>
-                    <div class="ggg-empty-state" style="padding: 12px">
-                        <div>终幕演出 - 开发中</div>
-                    </div>
-                </div>
-                <div class="ggg-section-divider"></div>
-                <div class="ggg-section-block">
-                    <div class="ggg-section-title">
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-toy-tab="finale">
+                        <i class="ggg-fa fa-solid fa-masks-theater"></i> 终幕演出
+                    </button>
+                    <button class="ggg-tools-nav-item" type="button" data-toy-tab="review">
                         <i class="ggg-fa fa-solid fa-comment-dots"></i> 段评
-                    </div>
-                    <div class="ggg-empty-state" style="padding: 12px">
-                        <div>段评 - 开发中</div>
+                    </button>
+                </div>
+
+                <div id="ggg-toy-panel-fullscreen" class="ggg-tools-subpanel active">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-expand"></i> 全屏兼容性
+                        </div>
+                        <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
+                            控制悬浮球面板里是否显示“隐藏顶栏”和“全屏”两个快捷动作。
+                        </div>
+                        <label class="ggg-toggle-label">
+                            <input type="checkbox" id="ggg-floating-ball-show-topbar" />
+                            <span>显示“隐藏顶栏”动作</span>
+                        </label>
+                        <label class="ggg-toggle-label" style="margin-top:6px;">
+                            <input type="checkbox" id="ggg-floating-ball-show-fullscreen" />
+                            <span>显示“全屏”动作</span>
+                        </label>
+                        <div class="ggg-section-divider"></div>
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-mobile-screen"></i> 全屏兼容性
+                        </div>
+                        <div style="font-size:0.82em;opacity:0.7;margin:4px 0 8px;">
+                            移动端浏览器（Chrome、Edge 等）的全屏模式存在渲染缺陷：软键盘弹出时，弹窗内容可能变透明、浏览器自动填充栏可能飘到错误位置。
+                            以下选项通过在聚焦时<b>临时退出全屏</b>来规避这些问题，关闭弹窗或取消聚焦后会自动恢复全屏。
+                            代价是进出全屏时屏幕会短暂闪黑（浏览器自身的过渡动画，无法消除）。
+                            <br><br>
+                            注：全屏功能仅适配 Chrome、Edge 等基于 Chromium 的浏览器，国产浏览器由于全屏 API 实现差异可能无法正常使用。
+                        </div>
+                        <label class="ggg-toggle-label" style="margin-top:6px;">
+                            <input type="checkbox" id="ggg-fs-fix-dialog" />
+                            <span>弹窗输入框聚焦时临时退出全屏</span>
+                        </label>
+                        <div style="font-size:0.78em;opacity:0.5;margin:2px 0 10px 22px;">
+                            修复：全屏下点击弹窗内的文本框/输入框后，弹窗整体变透明看不见。<br>
+                            关闭弹窗后自动恢复全屏。
+                        </div>
+                        <label class="ggg-toggle-label">
+                            <input type="checkbox" id="ggg-fs-fix-input" />
+                            <span>普通输入框聚焦时临时退出全屏</span>
+                        </label>
+                        <div style="font-size:0.78em;opacity:0.5;margin:2px 0 10px 22px;">
+                            修复：全屏下点击输入框后，浏览器自动填充栏飘到屏幕中间而非输入框下方。<br>
+                            输入框失焦后自动恢复全屏。
+                        </div>
                     </div>
                 </div>
+
+                <div id="ggg-toy-panel-achievement" class="ggg-tools-subpanel">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-trophy"></i> 成就
+                        </div>
+                        <div class="ggg-empty-state" style="padding: 12px">
+                            <div>成就系统 - 开发中</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ggg-toy-panel-finale" class="ggg-tools-subpanel">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-masks-theater"></i>
+                            终幕演出
+                        </div>
+                        <div class="ggg-empty-state" style="padding: 12px">
+                            <div>终幕演出 - 开发中</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ggg-toy-panel-review" class="ggg-tools-subpanel">
+                    <div class="ggg-section-block">
+                        <div class="ggg-section-title">
+                            <i class="ggg-fa fa-solid fa-comment-dots"></i> 段评
+                        </div>
+                        <div class="ggg-empty-state" style="padding: 12px">
+                            <div>段评 - 开发中</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
             <div id="ggg-panel-phone" class="ggg-panel">
                 <div class="ggg-section-block">
@@ -1191,7 +1281,7 @@
                     <div class="ggg-empty-state" style="padding: 12px; margin-top: 12px;">
                         <div style="font-size: 12px; opacity: 0.7;">
                             手机、长截图、顶栏和全屏入口已经合并到同一个悬浮球里。<br>
-                            哪些动作显示在面板中，由“呱！”页和对应功能页的开关共同决定。
+                            哪些动作显示在面板中，由“玩具”页和对应功能页的开关共同决定。
                         </div>
                     </div>
                 </div>

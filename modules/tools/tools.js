@@ -3,14 +3,21 @@
  * 负责工具导航、全局美化 CSS 条目管理与注入。
  */
 import { getSettings, saveAllSettings } from '../../index.js';
+import { isFullscreen as _gggIsFullscreen, exitFullscreen as _gggExitFullscreen } from '../phone/shell/browser-fullscreen.js';
 
 const STYLE_ID = 'ggg-global-beautify-style';
 const ITEM_STYLE_PREFIX = 'ggg-global-beautify-style-';
 const PERSONA_PREVIEW_ID = 'ggg-persona-avatar-preview';
+const CHARACTER_AVATAR_TARGET_SELECTOR = '#avatar_load_preview, #avatar_div_div';
+const AVATAR_DRAG_TARGET_SELECTOR = `${CHARACTER_AVATAR_TARGET_SELECTOR}, #${PERSONA_PREVIEW_ID}`;
 const PERSONA_EXTRA_DRAWER_CLASS = 'ggg-persona-management-extra-drawer';
 const PERSONA_EXTRA_CONTENT_CLASS = 'ggg-persona-management-extra-content';
 const LONGSHOT_CHAT_ONLY_KEY = 'ggg_longshot_chat_only';
 const LONGSHOT_KEEP_BARS_KEY = 'ggg_longshot_keep_bars';
+const LONGSHOT_REVEAL_CLICKS = 7;
+const LONGSHOT_REVEAL_GAP_MS = 500;
+const REMOVED_GLOBAL_BEAUTIFY_IDS = new Set(['builtin_loading_screen_replace']);
+const REMOVED_GLOBAL_BEAUTIFY_SCRIPTS = new Set(['loadingScreenReplace']);
 
 const BUILTIN_CONFIGS = {
     builtin_favorite_avatar_scroll: {
@@ -249,10 +256,13 @@ let personaTimer = null;
 let personaManagementTimer = null;
 let personaManagementRetryCount = 0;
 let personaGlobalSettingsPlaceholder = null;
+let avatarPreviewRefreshBound = false;
+let avatarPreviewStEventsBound = false;
 let avatarDragBound = false;
 let avatarDragState = null;
 let avatarDragActiveState = { character: false, persona: false };
 let avatarDragButtonTimer = null;
+let avatarDirectDragTargets = new WeakSet();
 let longScreenshotState = null;
 let longScreenshotRange = { start: null, end: null };
 
@@ -260,17 +270,68 @@ export function initTools() {
     ensureGlobalBeautifyData();
     bindToolNav();
     bindGlobalBeautifyToolbar();
+    bindAvatarPreviewRefreshHandlers();
     bindLongScreenshotTool();
     renderGlobalBeautifyList();
     applyGlobalBeautify();
 }
 
+function bindAvatarPreviewRefreshHandlers() {
+    if (avatarPreviewRefreshBound) return;
+    avatarPreviewRefreshBound = true;
+    document.addEventListener('click', handleAvatarPreviewPotentialChange, true);
+    document.addEventListener('change', handleAvatarPreviewPotentialChange, true);
+    bindAvatarPreviewStEvents();
+}
+
+function bindAvatarPreviewStEvents() {
+    if (avatarPreviewStEventsBound) return;
+    try {
+        const ctx = typeof SillyTavern !== 'undefined' ? SillyTavern.getContext?.() : null;
+        const es = ctx?.eventSource;
+        if (!es || typeof es.on !== 'function') return;
+
+        const scheduleForceRefresh = () => {
+            setTimeout(() => syncPersonaPreview(true), 0);
+            setTimeout(() => syncPersonaPreview(true), 350);
+            setTimeout(() => syncPersonaPreview(true), 1200);
+        };
+
+        ['settings_updated', 'persona_set', 'PERSONA_CHANGED'].forEach(ev => {
+            try {
+                es.on(ev, scheduleForceRefresh);
+                avatarPreviewStEventsBound = true;
+            } catch {}
+        });
+    } catch {}
+}
+
 function bindToolNav() {
-    document.querySelectorAll('.ggg-tools-nav-item').forEach(item => {
+    const nav = document.querySelector('#ggg-panel-tools .ggg-tools-nav');
+    if (!nav) return;
+    const longshotNav = document.getElementById('ggg-tool-longshot-nav');
+    let revealClicks = 0;
+    let lastRevealTs = 0;
+    let longshotRevealed = false;
+
+    const revealLongshotNav = () => {
+        if (longshotRevealed || !longshotNav) return;
+        longshotRevealed = true;
+        longshotNav.style.display = '';
+        nav.appendChild(longshotNav);
+    };
+
+    nav.querySelectorAll('.ggg-tools-nav-item').forEach(item => {
         item.addEventListener('click', () => {
-            document.querySelectorAll('.ggg-tools-nav-item').forEach(it => it.classList.remove('active'));
+            const now = Date.now();
+            if (!longshotRevealed && item.dataset.toolTab !== 'longshot') {
+                revealClicks = (now - lastRevealTs <= LONGSHOT_REVEAL_GAP_MS) ? (revealClicks + 1) : 1;
+                lastRevealTs = now;
+                if (revealClicks >= LONGSHOT_REVEAL_CLICKS) revealLongshotNav();
+            }
+            nav.querySelectorAll('.ggg-tools-nav-item').forEach(it => it.classList.remove('active'));
             item.classList.add('active');
-            document.querySelectorAll('.ggg-tools-subpanel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('#ggg-panel-tools .ggg-tools-subpanel').forEach(panel => panel.classList.remove('active'));
             document.getElementById(`ggg-tool-panel-${item.dataset.toolTab}`)?.classList.add('active');
         });
     });
@@ -438,9 +499,9 @@ export function toggleLongScreenshotRangePanel(forceOpen = null, anchorRect = nu
 function ensureLongScreenshotSettings() {
     const settings = getSettings();
     if (!settings.longScreenshot || typeof settings.longScreenshot !== 'object') {
-        settings.longScreenshot = { enabled: true };
+        settings.longScreenshot = { enabled: false };
     }
-    if (typeof settings.longScreenshot.enabled !== 'boolean') settings.longScreenshot.enabled = true;
+    if (typeof settings.longScreenshot.enabled !== 'boolean') settings.longScreenshot.enabled = false;
     return settings.longScreenshot;
 }
 
@@ -521,6 +582,17 @@ function ensureGlobalBeautifyData() {
     }
     if (!Array.isArray(settings.globalBeautify.deletedBuiltinIds)) {
         settings.globalBeautify.deletedBuiltinIds = [];
+    }
+
+    const originalLength = settings.globalBeautify.items.length;
+    settings.globalBeautify.items = settings.globalBeautify.items.filter(item => {
+        if (!item || typeof item !== 'object') return false;
+        if (REMOVED_GLOBAL_BEAUTIFY_IDS.has(item.id)) return false;
+        if (REMOVED_GLOBAL_BEAUTIFY_SCRIPTS.has(item.script)) return false;
+        return true;
+    });
+    if (settings.globalBeautify.items.length !== originalLength) {
+        saveAllSettings();
     }
 
     const items = settings.globalBeautify.items;
@@ -642,6 +714,9 @@ function buildBuiltinCSS(item) {
   max-width: ${width}px;
   height: ${height}px;
   display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 #avatar_load_preview {
@@ -649,13 +724,19 @@ function buildBuiltinCSS(item) {
   height: ${height}px;
   border-radius: 12px;
   object-fit: cover;
-  object-position: 50% 50%;
-  background-position: 50% 50%;
+  object-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
+  background-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
   background-size: cover;
   cursor: grab;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+#avatar_div_div {
+  background-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
+  background-size: cover;
+  cursor: grab;
 }
 
 #avatar_load_preview.ggg-avatar-dragging {
@@ -690,8 +771,8 @@ function buildBuiltinCSS(item) {
   max-width: ${width}px;
   height: ${height}px;
   object-fit: cover;
-  object-position: 50% 50%;
-  background-position: 50% 50%;
+  object-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
+  background-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
   background-size: cover;
   border-radius: 12px;
   display: block;
@@ -1008,22 +1089,32 @@ function startPersonaPreview() {
             attributeFilter: ['src', 'style', 'class'],
         });
     }
-    document.addEventListener('click', handlePersonaPotentialChange, true);
 }
 
 function stopPersonaPreview() {
     personaObserver?.disconnect();
     personaObserver = null;
-    document.removeEventListener('click', handlePersonaPotentialChange, true);
     if (personaTimer) clearTimeout(personaTimer);
     personaTimer = null;
     document.getElementById(PERSONA_PREVIEW_ID)?.remove();
 }
 
-function handlePersonaPotentialChange(event) {
-    if (event.target?.closest?.('#user_avatar_block, #persona_set_image_button, #persona_duplicate_button, #persona_delete_button')) {
-        setTimeout(syncPersonaPreview, 0);
-        setTimeout(syncPersonaPreview, 350);
+function handleAvatarPreviewPotentialChange(event) {
+    const target = event.target;
+    if (!target?.closest) return;
+    if (target.closest('.ggg-avatar-drag-toggle')) return;
+    if (target.closest(AVATAR_DRAG_TARGET_SELECTOR)) return;
+
+    if (target.closest('#user_avatar_block, #persona_set_image_button, #persona_duplicate_button, #persona_delete_button, #avatar_upload_file')) {
+        setTimeout(() => syncPersonaPreview(true), 0);
+        setTimeout(() => syncPersonaPreview(true), 350);
+        setTimeout(() => syncPersonaPreview(true), 1200);
+    }
+
+    if (target.closest('#character_popup, #avatar_div, #avatar_upload_file, #character_select, #rm_button_selected_ch')) {
+        setTimeout(() => refreshCharacterAvatarPreview(true), 0);
+        setTimeout(() => refreshCharacterAvatarPreview(true), 350);
+        setTimeout(() => refreshCharacterAvatarPreview(true), 1200);
     }
 }
 
@@ -1035,7 +1126,7 @@ function schedulePersonaSync() {
     }, 100);
 }
 
-function syncPersonaPreview() {
+function syncPersonaPreview(forceReload = false) {
     const controls = document.getElementById('persona_controls');
     if (!controls) {
         document.getElementById(PERSONA_PREVIEW_ID)?.remove();
@@ -1053,15 +1144,55 @@ function syncPersonaPreview() {
     }
 
     const src = findPersonaAvatarSrc(preview);
-    if (src && preview.getAttribute('src') !== src) {
-        preview.src = src;
-        preview.style.display = '';
-    } else if (!src) {
-        preview.removeAttribute('src');
-        preview.style.display = 'none';
-    }
+    setAvatarPreviewSource(preview, src, { forceReload });
     applyStoredAvatarPosition('persona', preview);
     scheduleAvatarDragButtonSync();
+}
+
+function refreshCharacterAvatarPreview(forceReload = false) {
+    const preview = document.getElementById('avatar_load_preview');
+    if (!preview) return;
+    const src = preview.dataset.gggPreviewBaseSrc
+        || normalizePreviewSource(preview.currentSrc || preview.getAttribute('src'))
+        || preview.currentSrc
+        || preview.getAttribute('src')
+        || '';
+    if (!src) return;
+    setAvatarPreviewSource(preview, src, { forceReload });
+    applyStoredAvatarPosition('character', preview);
+    scheduleAvatarDragButtonSync();
+}
+
+function setAvatarPreviewSource(preview, src, { forceReload = false } = {}) {
+    if (!preview) return;
+    if (!src) {
+        preview.removeAttribute('src');
+        preview.style.display = 'none';
+        delete preview.dataset.gggPreviewBaseSrc;
+        return;
+    }
+
+    const normalizedSrc = normalizePreviewSource(src) || String(src);
+    const currentNormalized = preview.dataset.gggPreviewBaseSrc
+        || normalizePreviewSource(preview.currentSrc || preview.getAttribute('src'))
+        || '';
+    if (forceReload || currentNormalized !== normalizedSrc || !preview.getAttribute('src')) {
+        preview.dataset.gggPreviewBaseSrc = normalizedSrc;
+        preview.src = src;
+    }
+    preview.style.display = '';
+}
+
+function normalizePreviewSource(value) {
+    if (!value) return '';
+    try {
+        const url = new URL(value, location.href);
+        url.search = '';
+        url.hash = '';
+        return url.toString();
+    } catch {
+        return String(value).replace(/[?#].*$/, '');
+    }
 }
 
 function findPersonaAvatarSrc(preview) {
@@ -1251,12 +1382,10 @@ function startAvatarPositionDrag(active = {}) {
     scheduleAvatarDragButtonSync();
 
     if ((active.character || active.persona) && !avatarDragBound) {
-        document.addEventListener('pointerdown', handleAvatarPointerDown, true);
         document.addEventListener('click', handleAvatarClickWhileUnlocked, true);
         document.addEventListener('dragstart', handleAvatarNativeDragStart, true);
         avatarDragBound = true;
     } else if (!active.character && !active.persona && avatarDragBound) {
-        document.removeEventListener('pointerdown', handleAvatarPointerDown, true);
         document.removeEventListener('click', handleAvatarClickWhileUnlocked, true);
         document.removeEventListener('dragstart', handleAvatarNativeDragStart, true);
         avatarDragBound = false;
@@ -1268,8 +1397,26 @@ function scheduleAvatarDragButtonSync() {
     avatarDragButtonTimer = setTimeout(() => {
         avatarDragButtonTimer = null;
         syncAvatarDragButtons(avatarDragActiveState);
+        syncAvatarDirectDragTargets();
         syncStoredAvatarPositions();
     }, 50);
+}
+
+function syncAvatarDirectDragTargets() {
+    document.querySelectorAll(CHARACTER_AVATAR_TARGET_SELECTOR).forEach(bindAvatarDirectDragTarget);
+    bindAvatarDirectDragTarget(document.getElementById(PERSONA_PREVIEW_ID));
+}
+
+function bindAvatarDirectDragTarget(target) {
+    if (!target || avatarDirectDragTargets.has(target)) return;
+    avatarDirectDragTargets.add(target);
+    target.style.touchAction = 'none';
+    target.style.userSelect = 'none';
+    target.style.webkitUserDrag = 'none';
+    target.draggable = false;
+    target.addEventListener('pointerdown', handleAvatarPointerDown);
+    target.addEventListener('touchstart', handleAvatarTouchStart, { passive: false });
+    target.addEventListener('dragstart', handleAvatarNativeDragStart);
 }
 
 function syncAvatarDragButtons(active = {}) {
@@ -1303,10 +1450,15 @@ function syncAvatarDragButton({ active, controls, anchor, kind }) {
         button.dataset.dragKind = kind;
         button.tabIndex = 0;
         button.setAttribute('role', 'button');
-        button.addEventListener('click', () => toggleAvatarDragUnlock(kind, button));
+        button.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            toggleAvatarDragUnlock(kind, button);
+        });
         button.addEventListener('keydown', event => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
+            event.stopImmediatePropagation();
             toggleAvatarDragUnlock(kind, button);
         });
     }
@@ -1342,6 +1494,7 @@ function updateAvatarDragButtonState(button, unlocked) {
 function syncStoredAvatarPositions() {
     if (avatarDragState) return;
     applyStoredAvatarPosition('character', document.getElementById('avatar_load_preview'));
+    applyStoredAvatarPosition('character', document.getElementById('avatar_div_div'));
     applyStoredAvatarPosition('persona', document.getElementById(PERSONA_PREVIEW_ID));
 }
 
@@ -1353,7 +1506,7 @@ function applyStoredAvatarPosition(kind, target) {
     item.config = normalizeBuiltinConfig(item.id, item.config);
     const key = getAvatarPositionKey(kind, target);
     const pos = getStoredAvatarPosition(item, key);
-    applyAvatarPositionToTarget(target, pos);
+    applyAvatarPositionForKind(kind, target, pos);
 }
 
 function getAvatarPositionItem(kind) {
@@ -1434,16 +1587,63 @@ function setStoredAvatarPosition(item, key, position) {
 
 function applyAvatarPositionToTarget(target, position) {
     if (!target || !position) return;
+    target.style.setProperty('--ggg-avatar-pos-x', `${position.x}%`);
+    target.style.setProperty('--ggg-avatar-pos-y', `${position.y}%`);
     target.style.objectPosition = `${position.x}% ${position.y}%`;
     target.style.backgroundPosition = `${position.x}% ${position.y}%`;
 }
 
+function applyAvatarPositionForKind(kind, target, position) {
+    if (kind !== 'character') {
+        applyAvatarPositionToTarget(target, position);
+        return;
+    }
+
+    const targets = new Set([
+        target,
+        document.getElementById('avatar_load_preview'),
+        document.getElementById('avatar_div_div'),
+    ]);
+    targets.forEach(node => applyAvatarPositionToTarget(node, position));
+}
+
 function handleAvatarPointerDown(event) {
     if (event.button !== undefined && event.button !== 0) return;
+    if (avatarDragState) return;
 
-    const target = event.target?.closest?.(`#avatar_load_preview, #${PERSONA_PREVIEW_ID}`);
+    const target = event.target?.closest?.(AVATAR_DRAG_TARGET_SELECTOR);
     if (!target) return;
 
+    startAvatarDragFromEvent(event, target, {
+        pointerId: event.pointerId,
+        capturePointer: true,
+        addMoveListeners() {
+            document.addEventListener('pointermove', handleAvatarPointerMove, true);
+            document.addEventListener('pointerup', handleAvatarPointerUp, true);
+            document.addEventListener('pointercancel', handleAvatarPointerUp, true);
+        },
+    });
+}
+
+function handleAvatarTouchStart(event) {
+    if (avatarDragState) return;
+
+    const target = event.target?.closest?.(AVATAR_DRAG_TARGET_SELECTOR);
+    if (!target || event.touches.length !== 1) return;
+
+    const touch = event.changedTouches[0] || event.touches[0];
+    startAvatarDragFromEvent(event, target, {
+        pointerId: touch.identifier,
+        point: touch,
+        addMoveListeners() {
+            document.addEventListener('touchmove', handleAvatarTouchMove, { capture: true, passive: false });
+            document.addEventListener('touchend', handleAvatarTouchEnd, true);
+            document.addEventListener('touchcancel', handleAvatarTouchEnd, true);
+        },
+    });
+}
+
+function startAvatarDragFromEvent(event, target, options = {}) {
     const isPersona = target.id === PERSONA_PREVIEW_ID;
     const activeKey = isPersona ? 'gggAvatarDragPersona' : 'gggAvatarDragCharacter';
     if (document.documentElement.dataset[activeKey] !== '1') return;
@@ -1458,16 +1658,18 @@ function handleAvatarPointerDown(event) {
     const storedPosition = getStoredAvatarPosition(item, positionKey);
     const rect = target.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    const point = options.point || event;
 
     avatarDragState = {
         item,
         target,
         rect,
-        pointerId: event.pointerId,
+        pointerId: options.pointerId,
+        hasPointerCapture: !!options.capturePointer,
         kind: isPersona ? 'persona' : 'character',
         moved: false,
-        startX: event.clientX,
-        startY: event.clientY,
+        startX: point.clientX,
+        startY: point.clientY,
         positionKey,
         currentPosX: storedPosition.x,
         currentPosY: storedPosition.y,
@@ -1477,35 +1679,64 @@ function handleAvatarPointerDown(event) {
 
     target.classList.add('ggg-avatar-dragging');
     target.draggable = false;
-    target.setPointerCapture?.(event.pointerId);
-    document.addEventListener('pointermove', handleAvatarPointerMove, true);
-    document.addEventListener('pointerup', handleAvatarPointerUp, true);
-    document.addEventListener('pointercancel', handleAvatarPointerUp, true);
-    event.preventDefault();
+    if (options.capturePointer && options.pointerId != null) {
+        try {
+            target.setPointerCapture?.(options.pointerId);
+        } catch {}
+    }
+    options.addMoveListeners?.();
+    if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
 }
 
 function handleAvatarPointerMove(event) {
     if (!avatarDragState) return;
-    const dx = event.clientX - avatarDragState.startX;
-    const dy = event.clientY - avatarDragState.startY;
+    moveAvatarDrag(event, event);
+}
+
+function handleAvatarTouchMove(event) {
+    if (!avatarDragState) return;
+    const touch = findAvatarDragTouch(event);
+    if (!touch) return;
+    moveAvatarDrag(event, touch);
+}
+
+function moveAvatarDrag(event, point) {
+    const dx = point.clientX - avatarDragState.startX;
+    const dy = point.clientY - avatarDragState.startY;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) avatarDragState.moved = true;
     const nextX = clampNumber(avatarDragState.startPosX - (dx / avatarDragState.rect.width) * 100, 0, 100, 50);
     const nextY = clampNumber(avatarDragState.startPosY - (dy / avatarDragState.rect.height) * 100, 0, 100, 50);
 
     avatarDragState.currentPosX = roundPosition(nextX);
     avatarDragState.currentPosY = roundPosition(nextY);
-    applyAvatarPositionToTarget(avatarDragState.target, {
+    applyAvatarPositionForKind(avatarDragState.kind, avatarDragState.target, {
         x: avatarDragState.currentPosX,
         y: avatarDragState.currentPosY,
     });
-    event.preventDefault();
+    if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
 }
 
 function handleAvatarPointerUp(event) {
     if (!avatarDragState) return;
-    avatarDragState.target.releasePointerCapture?.(avatarDragState.pointerId);
+    finishAvatarDrag(event);
+}
+
+function handleAvatarTouchEnd(event) {
+    if (!avatarDragState) return;
+    if (event.changedTouches?.length && !findAvatarDragTouch(event, 'changedTouches')) return;
+    finishAvatarDrag(event);
+}
+
+function finishAvatarDrag(event) {
+    if (avatarDragState.hasPointerCapture && avatarDragState.pointerId != null) {
+        try {
+            if (!avatarDragState.target.hasPointerCapture || avatarDragState.target.hasPointerCapture(avatarDragState.pointerId)) {
+                avatarDragState.target.releasePointerCapture?.(avatarDragState.pointerId);
+            }
+        } catch {}
+    }
     avatarDragState.target.classList.remove('ggg-avatar-dragging');
     setStoredAvatarPosition(avatarDragState.item, avatarDragState.positionKey, {
         x: avatarDragState.currentPosX,
@@ -1516,13 +1747,21 @@ function handleAvatarPointerUp(event) {
     document.removeEventListener('pointermove', handleAvatarPointerMove, true);
     document.removeEventListener('pointerup', handleAvatarPointerUp, true);
     document.removeEventListener('pointercancel', handleAvatarPointerUp, true);
+    document.removeEventListener('touchmove', handleAvatarTouchMove, true);
+    document.removeEventListener('touchend', handleAvatarTouchEnd, true);
+    document.removeEventListener('touchcancel', handleAvatarTouchEnd, true);
     saveAllSettings();
-    event.preventDefault();
+    if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
 }
 
+function findAvatarDragTouch(event, listName = 'touches') {
+    const touches = event[listName] || event.touches || [];
+    return [...touches].find(touch => touch.identifier === avatarDragState.pointerId) || null;
+}
+
 function handleAvatarClickWhileUnlocked(event) {
-    const target = event.target?.closest?.(`#avatar_load_preview, #${PERSONA_PREVIEW_ID}`);
+    const target = event.target?.closest?.(AVATAR_DRAG_TARGET_SELECTOR);
     if (!target) return;
 
     const kind = target.id === PERSONA_PREVIEW_ID ? 'persona' : 'character';
@@ -1535,7 +1774,7 @@ function handleAvatarClickWhileUnlocked(event) {
 }
 
 function handleAvatarNativeDragStart(event) {
-    const target = event.target?.closest?.(`#avatar_load_preview, #${PERSONA_PREVIEW_ID}`);
+    const target = event.target?.closest?.(AVATAR_DRAG_TARGET_SELECTOR);
     if (!target) return;
     const kind = target.id === PERSONA_PREVIEW_ID ? 'persona' : 'character';
     if (!isAvatarDragUnlocked(kind)) return;
@@ -1593,7 +1832,7 @@ async function startLongScreenshot(options = {}) {
     setLongScreenshotControls(true);
     setLongScreenshotStatus(state.useRange
         ? '正在唤起屏幕采集授权，请选择当前酒馆标签页。'
-        : (document.fullscreenElement ? '正在退出全屏并等待布局稳定...' : '请选择当前酒馆标签页，授权后会自动开始滚动截图。'));
+        : (_gggIsFullscreen() ? '正在退出全屏并等待布局稳定...' : '请选择当前酒馆标签页，授权后会自动开始滚动截图。'));
 
     try {
         state.scrollTarget = findLongScreenshotScrollTarget(state.chatOnly);
@@ -2065,11 +2304,10 @@ async function createLongScreenshotVideo(stream) {
 }
 
 async function exitLongScreenshotFullscreenIfNeeded() {
-    if (!document.fullscreenElement || typeof document.exitFullscreen !== 'function') return false;
-    try {
-        await document.exitFullscreen();
-    } catch (error) {
-        console.warn('[ggg] exit fullscreen before long screenshot failed', error);
+    if (!_gggIsFullscreen()) return false;
+    const ok = await _gggExitFullscreen();
+    if (!ok) {
+        console.warn('[ggg] exit fullscreen before long screenshot failed');
         return false;
     }
     await waitLongScreenshotFrame(700);
