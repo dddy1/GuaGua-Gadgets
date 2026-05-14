@@ -24,6 +24,29 @@
 /* ===== 分组标题 ===== */
 .ggg-group-title { font-size: 0.78em; font-weight: bold; padding: 6px 4px 3px; opacity: 0.7; border-bottom: 1px solid var(--SmartThemeBorderColor, #444); margin-bottom: 6px; grid-column: 1 / -1; }
 
+#ggg-legacy-panel { margin: 8px 0; }
+.ggg-legacy-box { border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 8px; padding: 10px; background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(0,0,0,0.35)) 85%, transparent); }
+.ggg-legacy-head, .ggg-legacy-footer { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.ggg-legacy-actions { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.ggg-legacy-hint { font-size: 0.76em; opacity: 0.68; line-height: 1.4; }
+.ggg-legacy-tabs { display: flex; gap: 0; margin-top: 10px; border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 6px; overflow: hidden; }
+.ggg-legacy-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px; cursor: pointer; font-size: 0.82em; color: var(--SmartThemeBodyColor, #ccc); opacity: 0.65; transition: opacity 0.2s, background 0.2s; user-select: none; }
+.ggg-legacy-tab:hover { opacity: 0.85; background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 5%, transparent); }
+.ggg-legacy-tab.active { opacity: 1; background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.12)); }
+.ggg-legacy-tab span { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72em; background: color-mix(in srgb, var(--SmartThemeQuoteColor, #888) 18%, transparent); }
+.ggg-legacy-group { margin-top: 10px; }
+.ggg-legacy-group-title { font-size: 0.82em; font-weight: bold; padding: 5px 0; border-bottom: 1px solid var(--SmartThemeBorderColor, #444); }
+.ggg-legacy-row { display: grid; grid-template-columns: auto 48px minmax(0, 1fr) 76px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #444) 55%, transparent); }
+.ggg-legacy-check { display: flex; align-items: center; justify-content: center; }
+.ggg-legacy-img, .ggg-legacy-color { width: 48px; height: 34px; border-radius: 5px; border: 1px solid var(--SmartThemeBorderColor, #555); background-size: cover; background-position: center; background-color: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3)); }
+.ggg-legacy-color { background-image: linear-gradient(45deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.18) 75%), linear-gradient(45deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.18) 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+.ggg-legacy-text { width: 48px; max-height: 34px; overflow: hidden; font-size: 0.72em; line-height: 1.25; opacity: 0.9; word-break: break-word; }
+.ggg-legacy-main { min-width: 0; }
+.ggg-legacy-name { width: 100%; box-sizing: border-box; font-size: 0.82em; }
+.ggg-legacy-meta { font-size: 0.7em; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.ggg-legacy-role { width: 76px; font-size: 0.78em; }
+.ggg-legacy-footer { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--SmartThemeBorderColor, #444); }
+
 /* ===== 图片卡片 ===== */
 #ggg-images-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; max-height: 500px; overflow-y: auto; align-items: start; }
 .ggg-img-card { border: 1px solid var(--SmartThemeBorderColor, #555); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3)); }

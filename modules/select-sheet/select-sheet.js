@@ -162,8 +162,10 @@ function refreshControls() {
 // ============================================================
 function isMobileViewport() { return window.innerWidth < MOBILE_BREAKPOINT; }
 function shouldEnable() {
-    const s = getSettings().selectSheet || {};
-    return isMobileViewport() ? !!s.mobileEnabled : !!s.pcEnabled;
+    const s = getSettings();
+    if (!s.enabled) return false;
+    const ss = s.selectSheet || {};
+    return isMobileViewport() ? !!ss.mobileEnabled : !!ss.pcEnabled;
 }
 
 function shouldHijack(sel) {

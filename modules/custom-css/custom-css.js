@@ -4,7 +4,7 @@
  * 数据结构：theme.customHTML[] = { id, label, css, html, target, position, enabled }
  * 旧版 theme.customCSS 字符串会在首次读取时迁移成一条独立条目
  */
-import { getThemeData, saveAllSettings, getCurrentThemeName } from '../../index.js';
+import { getThemeData, saveAllSettings, getCurrentThemeName, getSettings } from '../../index.js';
 const EVT_CSS_SAVED = 'ggg-custom-css-saved';
 const THEME_ATTR = 'data-ggg-theme';
 const CSS_ATTR = 'data-ggg-css';
@@ -99,9 +99,11 @@ function removeItemCSS(id) {
     else document.getElementById(`ggg-css-${id}`)?.remove();
 }
 
-/** 兼容旧 API：注入所有条目的 CSS */
+/** 兼容旧 API：注入所有条目的 CSS（总开关或美化开关关闭时全部移除） */
 export function injectCustomCSS() {
     [...cssEls.keys()].forEach(removeItemCSS);
+    const s = getSettings();
+    if (!s.enabled || !s.beautifyEnabled) return;
     for (const item of getCustomData().customHTML) injectItemCSS(item);
 }
 
@@ -572,6 +574,9 @@ export function injectAllCustomHTML() {
     [...cssEls.keys()].forEach(removeItemCSS);
     cleanupInjectedNodes();
     cleanupLegacySliderArtifacts();
+    // 总开关或美化开关关闭时，只做清理不重新注入
+    const s = getSettings();
+    if (!s.enabled || !s.beautifyEnabled) return;
     for (const item of getCustomData().customHTML) {
         injectItemCSS(item);
         injectHTMLItem(item);

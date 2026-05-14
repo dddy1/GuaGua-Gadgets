@@ -31,6 +31,7 @@ let parsedImages = [];
 let parsedTexts = [];
 let parsedColors = [];
 let parsedDims = [];
+let legacyCandidates = [];
 let expandedImageIndex = -1;
 let expandedColorIndex = -1;
 let expandedThemeVarIndex = -1;
@@ -69,10 +70,12 @@ export function onThemeChangedUICustom(newTheme) {
         data.presets['默认'] = {
             overrides: {},
             themeVars: {},
+            legacyItems: { images: [], texts: [], colors: [] },
         };
         data.currentPreset = '默认';
         overrides = {};
         data.themeVars = {};
+        data.legacyItems = { images: [], texts: [], colors: [] };
         saveAllSettings();
     }
     scanCSS();
@@ -105,7 +108,19 @@ export function injectOverrideStyle() {
     for (const [key, data] of Object.entries(overrides)) {
         if (!data || !data.selector) continue;
         let declarations = '';
-        if (data._multiProps && data._multiProps.length > 0) {
+        if (data._rules && data._rules.length > 0) {
+            for (const ruleData of data._rules) {
+                if (!ruleData?.selector || !ruleData.declarations) continue;
+                const ruleDecls = Array.isArray(ruleData.declarations) ? ruleData.declarations.join('; ') + ';' : ruleData.declarations;
+                if (ruleData.atRule) css += `${ruleData.atRule} { ${ruleData.selector} { ${ruleDecls} } }\n`;
+                else {
+                    const sel = ruleData.selector === ':root' ? ':root' :
+                                ruleData.selector.startsWith('body') ? ruleData.selector : `body ${ruleData.selector}`;
+                    css += `${sel} { ${ruleDecls} }\n`;
+                }
+            }
+            continue;
+        } else if (data._multiProps && data._multiProps.length > 0) {
             declarations = data._multiProps.map(p => `${p} !important`).join('; ') + ';';
         } else if (data.property && data.value) {
             declarations = `${data.property}: ${data.value} !important;`;
@@ -144,10 +159,12 @@ function saveCurrentThemeData() {
     if (!themeName) return;
     const data = getThemeData();
     data.overrides = JSON.parse(JSON.stringify(overrides));
+    if (!data.legacyItems) data.legacyItems = { images: [], texts: [], colors: [] };
     // 同步到活动存档
     if (data.currentPreset && data.presets?.[data.currentPreset]) {
         data.presets[data.currentPreset].overrides = JSON.parse(JSON.stringify(overrides));
         data.presets[data.currentPreset].themeVars = JSON.parse(JSON.stringify(data.themeVars || {}));
+        data.presets[data.currentPreset].legacyItems = JSON.parse(JSON.stringify(data.legacyItems || { images: [], texts: [], colors: [] }));
     }
     saveAllSettings();
 }
@@ -161,10 +178,12 @@ function loadCurrentThemeData() {
         const preset = data.presets[data.currentPreset];
         overrides = JSON.parse(JSON.stringify(preset.overrides || {}));
         data.themeVars = JSON.parse(JSON.stringify(preset.themeVars || {}));
+        if (preset.legacyItems) data.legacyItems = JSON.parse(JSON.stringify(preset.legacyItems));
     } else {
         overrides = JSON.parse(JSON.stringify(data.overrides || {}));
         data.themeVars = JSON.parse(JSON.stringify(data.themeVars || {}));
     }
+    if (!data.legacyItems) data.legacyItems = { images: [], texts: [], colors: [] };
 }
 
 
@@ -188,6 +207,7 @@ function injectUICustomPanel() {
                     <span id="ggg-ui-custom-theme-name">-</span>
                 </div>
                 <div id="ggg-ui-custom-actions">
+                    <div id="ggg-btn-legacy-scan" class="menu_button menu_button_icon ggg-btn-small" title="旧主题适配向导"><i class="ggg-fa fa-solid fa-wand-magic-sparkles"></i></div>
                     <div id="ggg-btn-reset-all" class="menu_button menu_button_icon ggg-btn-small" title="恢复所有默认"><i class="ggg-fa fa-solid fa-rotate-left"></i></div>
                     <div id="ggg-btn-refresh" class="menu_button menu_button_icon ggg-btn-small" title="重新扫描CSS"><i class="ggg-fa fa-solid fa-arrows-rotate"></i></div>
                 </div>
@@ -234,6 +254,7 @@ function injectUICustomPanel() {
                 <div id="ggg-dims-list"></div>
                 <div id="ggg-no-dims" class="ggg-empty-state"><div class="ggg-empty-icon"><i class="ggg-fa fa-solid fa-ruler-combined"></i></div><div>没有找到尺寸标记</div><div class="ggg-empty-hint">在CSS中添加 <code>/* ggg-dim: 名称 */</code></div></div>
             </div>
+            <div id="ggg-legacy-panel" style="display:none;"></div>
         </div>
     </div>`;
 
@@ -329,6 +350,7 @@ function injectUICustomPanel() {
 
     // 按钮绑定
     document.getElementById('ggg-btn-refresh')?.addEventListener('click', () => scanCSS());
+    document.getElementById('ggg-btn-legacy-scan')?.addEventListener('click', () => openLegacyScanPanel());
     document.getElementById('ggg-btn-reset-all')?.addEventListener('click', () => resetAllOverrides());
 
     const el = document.getElementById('ggg-ui-custom-theme-name');
@@ -350,6 +372,7 @@ function initPresets() {
         data.presets[trimmed] = {
             overrides: JSON.parse(JSON.stringify(overrides)),
             themeVars: JSON.parse(JSON.stringify(data.themeVars || {})),
+            legacyItems: JSON.parse(JSON.stringify(data.legacyItems || { images: [], texts: [], colors: [] })),
         };
         data.currentPreset = trimmed;
         saveAllSettings();
@@ -364,6 +387,7 @@ function initPresets() {
         data.presets[name] = {
             overrides: JSON.parse(JSON.stringify(overrides)),
             themeVars: JSON.parse(JSON.stringify(data.themeVars || {})),
+            legacyItems: JSON.parse(JSON.stringify(data.legacyItems || { images: [], texts: [], colors: [] })),
         };
         saveAllSettings();
         toastr.success(`已更新存档: ${name}`);
@@ -391,10 +415,11 @@ function initPresets() {
         if (preset) {
             overrides = JSON.parse(JSON.stringify(preset.overrides || preset));
             if (preset.themeVars) data.themeVars = JSON.parse(JSON.stringify(preset.themeVars));
+            if (preset.legacyItems) data.legacyItems = JSON.parse(JSON.stringify(preset.legacyItems));
             data.currentPreset = name;
             injectOverrideStyle();
             saveAllSettings();
-            renderImages(); renderTexts(); renderColors(); renderDims(); renderThemeVars();
+            scanCSS(); renderThemeVars();
             toastr.success(`已加载存档: ${name}`);
         }
     });
@@ -407,6 +432,7 @@ function initPresets() {
             themeName: getCurrentThemeName(),
             overrides: JSON.parse(JSON.stringify(overrides)),
             themeVars: JSON.parse(JSON.stringify(data.themeVars || {})),
+            legacyItems: JSON.parse(JSON.stringify(data.legacyItems || { images: [], texts: [], colors: [] })),
         };
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -440,14 +466,16 @@ function initPresets() {
                 data.presets[name.trim()] = {
                     overrides: importData.overrides,
                     themeVars: importData.themeVars || {},
+                    legacyItems: importData.legacyItems || { images: [], texts: [], colors: [] },
                 };
                 data.currentPreset = name.trim();
                 overrides = JSON.parse(JSON.stringify(importData.overrides));
                 if (importData.themeVars) data.themeVars = JSON.parse(JSON.stringify(importData.themeVars));
+                if (importData.legacyItems) data.legacyItems = JSON.parse(JSON.stringify(importData.legacyItems));
                 injectOverrideStyle();
                 saveAllSettings();
                 refreshPresetList();
-                renderImages(); renderTexts(); renderColors(); renderDims(); renderThemeVars();
+                scanCSS(); renderThemeVars();
                 toastr.success(`已导入存档: ${name.trim()}`);
             } catch (err) {
                 console.error('[ggg] 导入失败:', err);
@@ -552,12 +580,351 @@ function scanCSS() {
         parsedDims.push({ type: 'dim', role, name, originalValue: value, key, selector: si.selector, atRule: si.atRule, propertyName });
     }
 
+    appendLegacyItems();
     expandedImageIndex = -1;
     expandedColorIndex = -1;
     renderImages();
     renderTexts();
     renderColors();
     renderDims();
+}
+
+function getCombinedCssText() {
+    const ctx = SillyTavern.getContext();
+    const powerCSS = ctx.powerUserSettings?.custom_css || '';
+    const themeData = getThemeData();
+    const oldCSS = themeData.customCSS || '';
+    const itemsCSS = (themeData.customHTML || [])
+        .filter(it => it.css?.trim())
+        .map(it => `/* --- ${it.label || it.id} --- */\n${it.css}`)
+        .join('\n');
+    const gggCSS = [oldCSS, itemsCSS].filter(Boolean).join('\n');
+    return powerCSS + (gggCSS ? '\n/* === ggg-custom-css === */\n' + gggCSS : '');
+}
+
+function ensureLegacyItems(data = getThemeData()) {
+    if (!data.legacyItems) data.legacyItems = { images: [], texts: [], colors: [] };
+    data.legacyItems.images ||= [];
+    data.legacyItems.texts ||= [];
+    data.legacyItems.colors ||= [];
+    return data.legacyItems;
+}
+
+function appendLegacyItems() {
+    const data = getThemeData();
+    const legacy = ensureLegacyItems(data);
+    parsedImages.push(...legacy.images.map(item => ({ ...item, source: 'legacy', type: 'img' })));
+    parsedTexts.push(...legacy.texts.map(item => ({ ...item, source: 'legacy', type: 'text' })));
+    parsedColors.push(...legacy.colors.map(item => ({ ...item, source: 'legacy', type: 'color' })));
+}
+
+function makeLegacyKey(type, selector, propertyName, value, suffix = '') {
+    return `legacy:${type}:${hashString([selector, propertyName, value, suffix].join('|'))}`;
+}
+
+function hashString(str) {
+    let hash = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+function openLegacyScanPanel() {
+    legacyCandidates = scanLegacyCandidates(getCombinedCssText());
+    renderLegacyScanPanel();
+}
+
+function closeLegacyScanPanel() {
+    const panel = document.getElementById('ggg-legacy-panel');
+    if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+}
+
+function renderLegacyScanPanel() {
+    const panel = document.getElementById('ggg-legacy-panel');
+    if (!panel) return;
+    const groups = [
+        { type: 'images', title: '图片', icon: 'fa-image', items: legacyCandidates.filter(x => x.type === 'img') },
+        { type: 'texts', title: '文字', icon: 'fa-pen', items: legacyCandidates.filter(x => x.type === 'text') },
+        { type: 'colors', title: '颜色', icon: 'fa-droplet', items: legacyCandidates.filter(x => x.type === 'color') },
+    ];
+    const count = legacyCandidates.length;
+    const firstTab = groups.find(group => group.items.length > 0)?.type || 'images';
+    let html = `<div class="ggg-legacy-box">
+        <div class="ggg-legacy-head">
+            <div><b>旧主题适配向导</b><div class="ggg-legacy-hint">扫描未添加 ggg 标记的 CSS，勾选后保存为当前主题的可编辑项。</div></div>
+            <div class="ggg-legacy-actions">
+                <div class="menu_button menu_button_icon ggg-btn-small" id="ggg-legacy-select-all"><i class="ggg-fa fa-solid fa-square-check"></i> 全选</div>
+                <div class="menu_button menu_button_icon ggg-btn-small" id="ggg-legacy-select-none"><i class="ggg-fa fa-regular fa-square"></i> 全不选</div>
+                <div class="menu_button menu_button_icon ggg-btn-small" id="ggg-legacy-rescan"><i class="ggg-fa fa-solid fa-arrows-rotate"></i> 扫描</div>
+                <div class="menu_button menu_button_icon ggg-btn-small" id="ggg-legacy-close"><i class="ggg-fa fa-solid fa-xmark"></i></div>
+            </div>
+        </div>`;
+    if (count === 0) {
+        html += `<div class="ggg-empty-state"><div>没有找到可适配候选项</div></div>`;
+    } else {
+        html += `<div class="ggg-legacy-tabs">`;
+        for (const group of groups) {
+            if (group.items.length === 0) continue;
+            html += `<div class="ggg-legacy-tab ${group.type === firstTab ? 'active' : ''}" data-legacy-tab="${group.type}"><i class="ggg-fa fa-solid ${group.icon}"></i> ${group.title}<span>${group.items.length}</span></div>`;
+        }
+        html += `</div>`;
+        for (const group of groups) {
+            if (group.items.length === 0) continue;
+            html += `<div class="ggg-legacy-group" data-legacy-group="${group.type}" style="display:${group.type === firstTab ? '' : 'none'};">`;
+            group.items.forEach(item => {
+                const preview = item.type === 'img'
+                    ? `<div class="ggg-legacy-img" style="background-image:url('${escapeAttr(item.originalValue)}')"></div>`
+                    : item.type === 'color'
+                        ? `<div class="ggg-legacy-color" style="background:${escapeAttr(item.originalValue)}"></div>`
+                        : `<div class="ggg-legacy-text">${escapeHtml(item.originalValue)}</div>`;
+                html += `<div class="ggg-legacy-row" data-candidate-id="${escapeAttr(item.candidateId)}">
+                    <label class="ggg-legacy-check"><input type="checkbox" checked></label>
+                    ${preview}
+                    <div class="ggg-legacy-main">
+                        <input class="ggg-legacy-name text_pole" value="${escapeAttr(item.name)}">
+                        <div class="ggg-legacy-meta">${escapeHtml(item.selector)} · ${escapeHtml(item.propertyName || '')}</div>
+                    </div>
+                    <select class="ggg-legacy-role text_pole">
+                        <option value="" ${!item.role ? 'selected' : ''}>通用</option>
+                        <option value="user" ${item.role === 'user' ? 'selected' : ''}>User</option>
+                        <option value="char" ${item.role === 'char' ? 'selected' : ''}>Char</option>
+                    </select>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+    }
+    html += `<div class="ggg-legacy-footer">
+        <div class="ggg-legacy-hint">已保存的适配项会直接出现在图片、文字、颜色面板里；CSS 变化后可重新扫描。</div>
+        <div class="menu_button menu_button_icon ggg-btn-small" id="ggg-legacy-save"><i class="ggg-fa fa-solid fa-check"></i> 保存所选</div>
+    </div></div>`;
+    panel.innerHTML = html;
+    panel.style.display = '';
+    bindLegacyScanPanel();
+}
+
+function bindLegacyScanPanel() {
+    document.getElementById('ggg-legacy-close')?.addEventListener('click', closeLegacyScanPanel);
+    document.getElementById('ggg-legacy-rescan')?.addEventListener('click', openLegacyScanPanel);
+    document.getElementById('ggg-legacy-save')?.addEventListener('click', saveSelectedLegacyCandidates);
+    document.getElementById('ggg-legacy-select-all')?.addEventListener('click', () => setLegacySelection(true, getActiveLegacyTab()));
+    document.getElementById('ggg-legacy-select-none')?.addEventListener('click', () => setLegacySelection(false, getActiveLegacyTab()));
+    document.querySelectorAll('#ggg-legacy-panel .ggg-legacy-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const type = tab.dataset.legacyTab;
+            document.querySelectorAll('#ggg-legacy-panel .ggg-legacy-tab').forEach(t => t.classList.toggle('active', t === tab));
+            document.querySelectorAll('#ggg-legacy-panel .ggg-legacy-group').forEach(group => {
+                group.style.display = group.dataset.legacyGroup === type ? '' : 'none';
+            });
+        });
+    });
+    document.querySelectorAll('#ggg-legacy-panel input, #ggg-legacy-panel select').forEach(el => {
+        ['keydown', 'keyup', 'keypress', 'mousedown'].forEach(evt => el.addEventListener(evt, e => e.stopPropagation()));
+    });
+}
+
+function getActiveLegacyTab() {
+    return document.querySelector('#ggg-legacy-panel .ggg-legacy-tab.active')?.dataset.legacyTab || '';
+}
+
+function setLegacySelection(checked, type = '') {
+    const scope = type
+        ? document.querySelector(`#ggg-legacy-panel .ggg-legacy-group[data-legacy-group="${CSS.escape(type)}"]`)
+        : document.getElementById('ggg-legacy-panel');
+    if (!scope) return;
+    scope.querySelectorAll('.ggg-legacy-row input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+function saveSelectedLegacyCandidates() {
+    const data = getThemeData();
+    const legacy = ensureLegacyItems(data);
+    const savedKeys = new Set([...legacy.images, ...legacy.texts, ...legacy.colors].map(x => x.key));
+    let added = 0;
+    document.querySelectorAll('#ggg-legacy-panel .ggg-legacy-row').forEach(row => {
+        if (!row.querySelector('input[type="checkbox"]')?.checked) return;
+        const candidate = legacyCandidates.find(x => x.candidateId === row.dataset.candidateId);
+        if (!candidate || savedKeys.has(candidate.key)) return;
+        const item = {
+            ...candidate,
+            name: row.querySelector('.ggg-legacy-name')?.value?.trim() || candidate.name,
+            role: row.querySelector('.ggg-legacy-role')?.value || '',
+            source: 'legacy',
+        };
+        delete item.candidateId;
+        if (item.type === 'img') legacy.images.push(item);
+        else if (item.type === 'text') legacy.texts.push(item);
+        else if (item.type === 'color') legacy.colors.push(item);
+        savedKeys.add(item.key);
+        added++;
+    });
+    if (added === 0) { toastr.info('没有新的候选项需要保存'); return; }
+    data.legacyCssHash = hashString(getCombinedCssText());
+    saveCurrentThemeData();
+    scanCSS();
+    closeLegacyScanPanel();
+    toastr.success(`已保存 ${added} 个旧主题适配项`);
+}
+
+function scanLegacyCandidates(cssText) {
+    const existingKeys = new Set([...parsedImages, ...parsedTexts, ...parsedColors].map(x => x.key));
+    const candidates = [];
+    const colorGroups = new Map();
+    walkCssRules(cssText, (rule) => {
+        const declarations = parseDeclarations(rule.content);
+        declarations.forEach(decl => {
+            const rawDecl = rule.content.substring(decl.start, decl.end);
+            if (/ggg-(?:img|text|color|dim)/i.test(rawDecl)) return;
+            const prop = decl.property.toLowerCase();
+            const value = decl.value.trim();
+            const itemBase = { selector: rule.selector, atRule: rule.atRule, propertyName: decl.property };
+            if (isLegacyImageProperty(prop) && /url\(/i.test(value)) {
+                const urls = extractUrls(value);
+                urls.forEach((url, idx) => {
+                    const key = makeLegacyKey('img', rule.selector, decl.property, url, idx);
+                    if (existingKeys.has(key)) return;
+                    candidates.push({
+                        ...itemBase,
+                        type: 'img',
+                        role: guessRoleFromSelector(rule.selector),
+                        name: guessLegacyName(rule.selector, decl.property),
+                        originalValue: url,
+                        fullValue: value,
+                        key,
+                        candidateId: key,
+                        previewBox: extractPreviewBox(cssText, rule.start + decl.start),
+                        defaultProps: extractImageDefaultProps(cssText, rule.start + decl.start),
+                    });
+                });
+            } else if (prop === 'content') {
+                const text = extractCssString(value);
+                if (!text || text.length > 80) return;
+                const key = makeLegacyKey('text', rule.selector, decl.property, text);
+                if (existingKeys.has(key)) return;
+                candidates.push({
+                    ...itemBase,
+                    type: 'text',
+                    role: guessRoleFromSelector(rule.selector),
+                    name: guessLegacyName(rule.selector, decl.property),
+                    originalValue: text,
+                    key,
+                    candidateId: key,
+                });
+            }
+            extractColors(value).forEach(color => {
+                const rgba = parseColorWithAlpha(color);
+                const base = rgbToHex(rgba.r, rgba.g, rgba.b);
+                if (base === '#000000' && !/black|#0|rgb|hsl/i.test(color)) return;
+                const groupKey = `${base}|${guessRoleFromSelector(rule.selector)}`;
+                if (!colorGroups.has(groupKey)) {
+                    colorGroups.set(groupKey, {
+                        type: 'color',
+                        role: guessRoleFromSelector(rule.selector),
+                        name: `颜色 ${base}`,
+                        originalValue: rgba.a >= 1 ? base : `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${rgba.a.toFixed(2)})`,
+                        propertyName: '多处',
+                        selector: rule.selector,
+                        atRule: rule.atRule,
+                        key: makeLegacyKey('color', groupKey, 'color-group', base),
+                        usages: [],
+                    });
+                }
+                const group = colorGroups.get(groupKey);
+                group.usages.push({ selector: rule.selector, atRule: rule.atRule, propertyName: decl.property, alpha: rgba.a, originalValue: color });
+            });
+        });
+    });
+    for (const group of colorGroups.values()) {
+        if (existingKeys.has(group.key)) continue;
+        group.candidateId = group.key;
+        candidates.push(group);
+    }
+    return candidates;
+}
+
+function walkCssRules(cssText, onRule, atRule = null, startOffset = 0) {
+    let i = 0;
+    while (i < cssText.length) {
+        const open = cssText.indexOf('{', i);
+        if (open < 0) break;
+        const selector = cssText.substring(i, open).replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        const close = findMatchingBrace(cssText, open);
+        if (close < 0) break;
+        const content = cssText.substring(open + 1, close);
+        if (selector.startsWith('@') && !selector.startsWith('@font-face')) {
+            walkCssRules(content, onRule, selector, startOffset + open + 1);
+        } else if (selector && !selector.startsWith('@')) {
+            onRule({ selector, atRule, content, start: startOffset + open + 1 });
+        }
+        i = close + 1;
+    }
+}
+
+function findMatchingBrace(text, openIndex) {
+    let depth = 0, quote = null;
+    for (let i = openIndex; i < text.length; i++) {
+        const ch = text[i], prev = text[i - 1];
+        if (quote) {
+            if (ch === quote && prev !== '\\') quote = null;
+            continue;
+        }
+        if (ch === '"' || ch === "'") { quote = ch; continue; }
+        if (ch === '{') depth++;
+        if (ch === '}') { depth--; if (depth === 0) return i; }
+    }
+    return -1;
+}
+
+function isLegacyImageProperty(prop) {
+    return ['background', 'background-image', 'border-image', 'border-image-source', 'mask-image', '-webkit-mask-image', 'list-style-image', 'cursor'].includes(prop);
+}
+
+function extractUrls(value) {
+    const urls = [];
+    value.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (_, _q, url) => {
+        if (url && !url.startsWith('data:')) urls.push(url.trim());
+        return _;
+    });
+    return urls;
+}
+
+function extractCssString(value) {
+    const match = value.match(/^(['"])([\s\S]*?)\1/);
+    return match ? match[2] : '';
+}
+
+function extractColors(value) {
+    const colors = [];
+    const patterns = [
+        /#[0-9a-f]{3,8}\b/gi,
+        /rgba?\(\s*[^)]+\)/gi,
+        /hsla?\(\s*[^)]+\)/gi,
+        /\b(?:black|white|red|green|blue|transparent)\b/gi,
+    ];
+    patterns.forEach(re => {
+        let m;
+        re.lastIndex = 0;
+        while ((m = re.exec(value)) !== null) {
+            if (m[0].toLowerCase() !== 'transparent') colors.push(m[0]);
+        }
+    });
+    return colors;
+}
+
+function guessRoleFromSelector(selector) {
+    const s = (selector || '').toLowerCase();
+    if (/(user|you|mes_user|usermes|user_mes)/.test(s)) return 'user';
+    if (/(char|bot|assistant|ai|mes_bot|botmes|charmes)/.test(s)) return 'char';
+    return '';
+}
+
+function guessLegacyName(selector, propertyName) {
+    const cleanSelector = (selector || '').replace(/\s+/g, ' ').trim();
+    const tail = cleanSelector.split(/\s*,\s*/)[0].split(/\s+/).slice(-2).join(' ');
+    return `${tail || 'CSS'} · ${propertyName}`;
 }
 
 function resetAllOverrides() {
@@ -775,6 +1142,18 @@ function replaceUrlInValue(fullValue, oldUrl, newUrl) {
 function escapeRegExp(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
 function buildImageOverride(item, newUrl, props) {
+    if (item.source === 'legacy') {
+        const sourceValue = item.fullValue || `url('${item.originalValue}')`;
+        const newFullValue = replaceUrlInValue(sourceValue, item.originalValue, newUrl);
+        const cssProps = [`${item.propertyName || 'background-image'}: ${newFullValue}`];
+        const propName = (item.propertyName || '').toLowerCase();
+        if (props && (propName === 'background' || propName === 'background-image')) {
+            if (props.size) cssProps.push(`background-size: ${props.size}`);
+            if (props.position) cssProps.push(`background-position: ${props.position}`);
+            if (props.repeat) cssProps.push(`background-repeat: ${props.repeat}`);
+        }
+        return { selector: item.selector, atRule: item.atRule, property: item.propertyName || 'background-image', value: newFullValue, _newUrl: newUrl, _props: props || {}, _multiProps: cssProps.length > 1 ? cssProps : undefined };
+    }
     const powerCSS = SillyTavern.getContext().powerUserSettings?.custom_css || '';
     const themeData = getThemeData();
     const oldCSS = themeData.customCSS || '';
@@ -1537,6 +1916,27 @@ function renderColors() {
 }
 
 function applyColorChange(item, newColor) {
+    if (item.source === 'legacy' && Array.isArray(item.usages) && item.usages.length > 0) {
+        const base = parseColorWithAlpha(newColor);
+        overrides[item.key] = {
+            selector: item.selector,
+            atRule: item.atRule,
+            property: item.propertyName,
+            value: newColor,
+            _rules: item.usages.map(usage => {
+                const a = Number.isFinite(usage.alpha) ? usage.alpha : 1;
+                const solid = rgbToHex(base.r, base.g, base.b);
+                const value = a >= 0.995 ? solid : `color-mix(in srgb, ${solid} ${Math.round(a * 100)}%, transparent)`;
+                return {
+                    selector: usage.selector,
+                    atRule: usage.atRule,
+                    declarations: [`${usage.propertyName}: ${value} !important`],
+                };
+            }),
+        };
+        injectOverrideStyle(); saveAllSettings();
+        return;
+    }
     overrides[item.key] = { selector: item.selector, atRule: item.atRule, property: item.propertyName, value: newColor };
     injectOverrideStyle(); saveAllSettings();
 }

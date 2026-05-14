@@ -767,15 +767,16 @@ function buildBuiltinCSS(item) {
 }
 
 #${PERSONA_PREVIEW_ID} {
-  width: 100%;
-  max-width: ${width}px;
-  height: ${height}px;
-  object-fit: cover;
+  width: ${width}px !important;
+  max-width: min(100%, ${width}px) !important;
+  height: ${height}px !important;
+  object-fit: cover !important;
   object-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
   background-position: var(--ggg-avatar-pos-x, 50%) var(--ggg-avatar-pos-y, 50%);
   background-size: cover;
+  flex: 0 0 auto;
   border-radius: 12px;
-  display: block;
+  display: block !important;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -836,14 +837,14 @@ function createBeautifyItemNode(item, open) {
     details.className = 'ggg-global-beautify-item';
     details.dataset.id = item.id;
     details.open = !!open;
-    if (!item.enabled) details.classList.add('disabled');
+    if (!isGlobalBeautifyItemActive(item)) details.classList.add('disabled');
 
     const summary = document.createElement('summary');
     summary.className = 'ggg-global-beautify-summary';
 
     const enabled = document.createElement('input');
     enabled.type = 'checkbox';
-    enabled.checked = item.enabled !== false;
+    enabled.checked = isGlobalBeautifyItemActive(item);
     enabled.title = '启用';
     enabled.addEventListener('click', e => e.stopPropagation());
     enabled.addEventListener('change', () => {
@@ -930,11 +931,11 @@ function createSimpleBeautifyItemNode(item) {
     const row = document.createElement('div');
     row.className = 'ggg-global-beautify-item ggg-global-beautify-simple';
     row.dataset.id = item.id;
-    if (!item.enabled) row.classList.add('disabled');
+    if (!isGlobalBeautifyItemActive(item)) row.classList.add('disabled');
 
     const enabled = document.createElement('input');
     enabled.type = 'checkbox';
-    enabled.checked = item.enabled !== false;
+    enabled.checked = isGlobalBeautifyItemActive(item);
     enabled.title = '启用';
     enabled.addEventListener('change', () => {
         item.enabled = enabled.checked;
@@ -1030,12 +1031,12 @@ export function applyGlobalBeautify() {
     removeLegacyCombinedStyle();
 
     for (const item of getGlobalBeautifyItems()) {
-        const active = enabled && item.enabled !== false;
+        const active = enabled && isGlobalBeautifyItemActive(item);
         updateItemStyle(item, active);
     }
 
-    const personaItem = getGlobalBeautifyItems().find(item => item.script === 'personaPreview');
-    if (enabled && personaItem?.enabled !== false) startPersonaPreview();
+    const personaItem = getGlobalBeautifyItems().find(item => item.id === 'builtin_persona_avatar_preview');
+    if (enabled && personaItem?.enabled === true) startPersonaPreview();
     else stopPersonaPreview();
 
     const personaManagementItem = getGlobalBeautifyItems().find(item => item.script === 'personaCurrentDescriptionUp');
@@ -1045,8 +1046,15 @@ export function applyGlobalBeautify() {
     const characterAvatarItem = getGlobalBeautifyItems().find(item => item.id === 'builtin_character_avatar_large');
     startAvatarPositionDrag({
         character: enabled && characterAvatarItem?.enabled !== false,
-        persona: enabled && personaItem?.enabled !== false,
+        persona: enabled && personaItem?.enabled === true,
     });
+}
+
+function isGlobalBeautifyItemActive(item) {
+    if (item?.id === 'builtin_persona_avatar_preview') {
+        return item.enabled === true;
+    }
+    return item?.enabled !== false;
 }
 
 function removeLegacyCombinedStyle() {
@@ -1096,7 +1104,9 @@ function stopPersonaPreview() {
     personaObserver = null;
     if (personaTimer) clearTimeout(personaTimer);
     personaTimer = null;
+    removeItemStyle('builtin_persona_avatar_preview');
     document.getElementById(PERSONA_PREVIEW_ID)?.remove();
+    document.getElementById('ggg-avatar-drag-toggle-persona')?.remove();
 }
 
 function handleAvatarPreviewPotentialChange(event) {
@@ -1105,7 +1115,7 @@ function handleAvatarPreviewPotentialChange(event) {
     if (target.closest('.ggg-avatar-drag-toggle')) return;
     if (target.closest(AVATAR_DRAG_TARGET_SELECTOR)) return;
 
-    if (target.closest('#user_avatar_block, #persona_set_image_button, #persona_duplicate_button, #persona_delete_button, #avatar_upload_file')) {
+    if (isPersonaAvatarPreviewEnabled() && target.closest('#user_avatar_block, #persona_set_image_button, #persona_duplicate_button, #persona_delete_button, #avatar_upload_file')) {
         setTimeout(() => syncPersonaPreview(true), 0);
         setTimeout(() => syncPersonaPreview(true), 350);
         setTimeout(() => syncPersonaPreview(true), 1200);
@@ -1118,7 +1128,18 @@ function handleAvatarPreviewPotentialChange(event) {
     }
 }
 
+function isPersonaAvatarPreviewEnabled() {
+    const settings = getSettings();
+    if (settings.enabled === false || settings.toolsEnabled === false) return false;
+    const item = getGlobalBeautifyItems().find(it => it.id === 'builtin_persona_avatar_preview');
+    return item?.enabled === true;
+}
+
 function schedulePersonaSync() {
+    if (!isPersonaAvatarPreviewEnabled()) {
+        stopPersonaPreview();
+        return;
+    }
     if (personaTimer) return;
     personaTimer = setTimeout(() => {
         personaTimer = null;
@@ -1127,6 +1148,11 @@ function schedulePersonaSync() {
 }
 
 function syncPersonaPreview(forceReload = false) {
+    if (!isPersonaAvatarPreviewEnabled()) {
+        stopPersonaPreview();
+        return;
+    }
+
     const controls = document.getElementById('persona_controls');
     if (!controls) {
         document.getElementById(PERSONA_PREVIEW_ID)?.remove();
@@ -1626,7 +1652,10 @@ function handleAvatarPointerDown(event) {
 }
 
 function handleAvatarTouchStart(event) {
-    if (avatarDragState) return;
+    if (avatarDragState) {
+        if (event.cancelable) event.preventDefault();
+        return;
+    }
 
     const target = event.target?.closest?.(AVATAR_DRAG_TARGET_SELECTOR);
     if (!target || event.touches.length !== 1) return;

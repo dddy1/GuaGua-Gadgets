@@ -162,6 +162,9 @@ function bindSettingUI() {
         });
     }
 }
+// 导出供主入口在总开关切换时调用
+export function reapplyPhoneState() { applyEnabledState(); }
+
 function applyEnabledState() {
     unmountPPPreviewNotifier();
     // 不论开/关，先停掉 TopInfoBar 修正循环、清掉之前的 transform；
@@ -173,7 +176,7 @@ function applyEnabledState() {
     document.querySelectorAll('#extensionTopBar, .extension-top-bar, #top-info-bar, .top-info-bar')
         .forEach(el => { el.style.removeProperty('transform'); });
 
-    if (settings.phone?.enabled) {
+    if (settings.enabled !== false && settings.phone?.enabled) {
         mountPPPreviewNotifier({ onOpenPPChat: openPPChatFromPreview });
         applyMobileStatusBarPolicy();
     } else {

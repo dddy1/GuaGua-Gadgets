@@ -7,12 +7,12 @@ import { extension_settings, renderExtensionTemplateAsync } from '../../../exten
 
 import { initUICustom, onThemeChangedUICustom, injectOverrideStyle } from './modules/ui-custom/ui-custom.js';
 import { initGallery, updateAvatarShape } from './modules/gallery/gallery.js';
-import { initFont } from './modules/font/font.js';
+import { initFont, reapplyFontStyles } from './modules/font/font.js';
 import { initCustomCSS, injectCustomCSS, injectAllCustomHTML, onThemeChangedCustomCSS } from './modules/custom-css/custom-css.js';
-import { initWorldInfoSheet } from './modules/world-info-sheet/world-info-sheet.js';
+import { initWorldInfoSheet, reapplyWiSheetState } from './modules/world-info-sheet/world-info-sheet.js';
 import { initSelectSheet } from './modules/select-sheet/select-sheet.js';
 import { initTools, applyGlobalBeautify } from './modules/tools/tools.js';
-import { initPhone } from './modules/phone/phone.js';
+import { initPhone, reapplyPhoneState } from './modules/phone/phone.js';
 import { initFontRescue } from './modules/font-rescue/font-rescue.js';
 import { initCharacterCards } from './modules/character-cards/character-cards.js';
 import { initFloatingBall } from './modules/phone/shell/floating-ball.js';
@@ -403,6 +403,11 @@ function initMainPanel() {
         updateUICustomVisibility();
         injectOverrideStyle();
         applyGlobalBeautify();
+        reapplyFontStyles();
+        injectCustomCSS();
+        injectAllCustomHTML();
+        reapplyWiSheetState();
+        reapplyPhoneState();
         saveAllSettings();
         notifyFloatingBallChanged();
     });
@@ -413,6 +418,9 @@ function initMainPanel() {
         updateUICustomVisibility();
         injectOverrideStyle();
         applyGlobalBeautify();
+        reapplyFontStyles();
+        injectCustomCSS();
+        injectAllCustomHTML();
         saveAllSettings();
     });
 

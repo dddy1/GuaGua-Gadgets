@@ -21,6 +21,11 @@ const FONT_SCOPES = [
     { key: 'quote',     label: '引用(q)',  selector: 'q' },
     { key: 'em',        label: '斜体(em)', selector: 'em' },
     { key: 'strong',    label: '粗体',     selector: 'strong' },
+    { key: 'headings',  label: '大标题/抽屉', selector: '#user-settings-block h4, #AdvancedFormatting h4, #openai_api-presets .margin0.title_restorable.standoutHeader, #persona-management-block .standoutHeader, .inline-drawer-toggle.inline-drawer-header, #world_popup > div:nth-child(2), #completion_prompt_manager .completion_prompt_manager_header' },
+    { key: 'topbar',    label: '顶栏名称', selector: '#rm_button_selected_ch h2, #PersonaManagement h3, #rm_extensions_block h3, #bg-header-fixed h3, #user-settings-block h3, #WorldInfo h3, #AdvancedFormatting h3, #rm_api_block h3' },
+    { key: 'code_all',  label: '代码(全)', selector: 'code' },
+    { key: 'code_block', label: '代码块',  selector: 'pre code' },
+    { key: 'code_inline', label: '行内代码', selector: 'code:not(pre code)' },
 ];
 
 /** 每页显示字体数量 */
@@ -1051,6 +1056,9 @@ function _scheduleSaveAfterClamp() {
     }, 300);
 }
 
+// 导出供主入口在开关切换时调用
+export function reapplyFontStyles() { injectFontStyles(); }
+
 function injectFontStyles() {
     let styleEl = document.getElementById('ggg-fonts');
     if (!styleEl) {
@@ -1062,7 +1070,12 @@ function injectFontStyles() {
     // 清理旧的在线字体 <link>
     document.querySelectorAll('link[data-ggg-font]').forEach(el => el.remove());
 
-    if (!fontSettings.enabled) { styleEl.textContent = ''; return; }
+    // 总开关、美化开关、字体开关任一关闭时，清除所有字体样式
+    const masterSettings = getSettings();
+    if (!masterSettings.enabled || !masterSettings.beautifyEnabled || !fontSettings.enabled) {
+        styleEl.textContent = '';
+        return;
+    }
 
     let fontFaces = '';
     let rules = '';
@@ -1097,9 +1110,10 @@ function injectFontStyles() {
         if (!font.enabled) return;
 
         // 构建选择器列表
+        const allScopes = getAllScopes();
         const selectors = [];
         (font.scopes || []).forEach(key => {
-            const scope = FONT_SCOPES.find(s => s.key === key);
+            const scope = allScopes.find(s => s.key === key);
             if (scope) selectors.push(scope.selector);
         });
         if (font.customSelector) selectors.push(font.customSelector);
@@ -1130,6 +1144,18 @@ function injectFontStyles() {
     });
 
     styleEl.textContent = fontFaces + rules;
+}
+
+/** 获取所有可用 scope（内置 + 高级自定义全局选择器） */
+function getAllScopes() {
+    const scopes = [...FONT_SCOPES];
+    (fontSettings.globalSelectors || []).forEach((s, i) => {
+        const key = `_gs_${i}`;
+        if (s.selector?.trim()) {
+            scopes.push({ key, label: s.name || `自定义${i+1}`, selector: s.selector.trim() });
+        }
+    });
+    return scopes;
 }
 
 // ============================================================
@@ -1299,17 +1325,18 @@ function refreshActiveFonts() {
         return;
     }
 
+    const allScopes = getAllScopes();
     row.innerHTML = active.map(f => {
         const ff = `'${f.fontFaceName || f.name}', sans-serif`;
         const displayName = f.zhName || f.name;
         const scopes = f.scopes || [];
         // 已选 chip：横向滚动显示
-        const activeChips = FONT_SCOPES
+        const activeChips = allScopes
             .filter(s => scopes.includes(s.key))
             .map(s => `<span class="ggg-fscope-chip active" data-fid="${escapeAttr(f.id)}" data-scope="${s.key}">${s.label}</span>`)
             .join('');
         // 未选 chip：默认折叠，点 + 展开
-        const inactiveChips = FONT_SCOPES
+        const inactiveChips = allScopes
             .filter(s => !scopes.includes(s.key))
             .map(s => `<span class="ggg-fscope-chip" data-fid="${escapeAttr(f.id)}" data-scope="${s.key}">${s.label}</span>`)
             .join('');
@@ -1512,8 +1539,9 @@ function buildFontItemHTML(font) {
     const isMissing  = font._missing;
 
     // 范围标签（最多显示 2 个）
+    const allScopes = getAllScopes();
     const scopeLabels = (font.scopes || []).slice(0, 2).map(key => {
-        const s = FONT_SCOPES.find(x => x.key === key);
+        const s = allScopes.find(x => x.key === key);
         return s ? `<span class="ggg-fitem-scope">${s.label}</span>` : '';
     }).join('');
 
@@ -1559,7 +1587,8 @@ function buildFontSettingsHTML(font) {
     const tags     = font.tags || [];
     const hasCustom = !!font.customSelector;
 
-    const scopeChips = FONT_SCOPES.map(s =>
+    const allScopes = getAllScopes();
+    const scopeChips = allScopes.map(s =>
         `<span class="ggg-fscope-chip ${scopes.includes(s.key) ? 'active' : ''}" data-fid="${escapeAttr(font.id)}" data-scope="${s.key}">${s.label}</span>`
     ).join('');
 
@@ -1623,6 +1652,7 @@ function renderGlobalSelectors() {
             saveAllSettings();
             injectFontStyles();
             renderGlobalSelectors();
+            refreshFontList();
         });
     });
 }
@@ -1762,7 +1792,6 @@ function bindFontPanelEvents() {
     document.getElementById('ggg-font-btn-pick-file')?.addEventListener('click', () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.ttf,.otf,.woff,.woff2';
         input.multiple = true;
         input.addEventListener('change', async e => {
             const files = e.target.files;
@@ -1806,22 +1835,28 @@ function bindFontPanelEvents() {
             <input type="text" id="ggg-gs-name" class="text_pole" placeholder="名称（如：侧边栏）" style="margin-bottom:8px;">
             <input type="text" id="ggg-gs-sel" class="text_pole" placeholder="CSS 选择器（如：.sidebar, #menu）">
         </div>`;
+        let capturedName = '';
+        let capturedSel = '';
         setTimeout(() => {
-            ['ggg-gs-name','ggg-gs-sel'].forEach(id => {
-                const el = document.getElementById(id);
+            const nameEl = document.getElementById('ggg-gs-name');
+            const selEl = document.getElementById('ggg-gs-sel');
+            [nameEl, selEl].forEach(el => {
                 if (el) ['keydown','keyup','keypress','input'].forEach(e => el.addEventListener(e, ev => ev.stopPropagation()));
             });
+            if (nameEl) nameEl.addEventListener('input', () => { capturedName = nameEl.value; });
+            if (selEl) selEl.addEventListener('input', () => { capturedSel = selEl.value; });
         }, 100);
         const ok = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '添加', cancelButton: '取消' });
         if (!ok) return;
-        const name = document.getElementById('ggg-gs-name')?.value?.trim();
-        const sel  = document.getElementById('ggg-gs-sel')?.value?.trim();
+        const name = (document.getElementById('ggg-gs-name')?.value ?? capturedName).trim();
+        const sel  = (document.getElementById('ggg-gs-sel')?.value ?? capturedSel).trim();
         if (!sel) { toastr.warning('请输入 CSS 选择器'); return; }
         if (!fontSettings.globalSelectors) fontSettings.globalSelectors = [];
         fontSettings.globalSelectors.push({ name: name || sel, selector: sel });
         saveAllSettings();
         injectFontStyles();
         renderGlobalSelectors();
+        refreshFontList();
     });
 }
 

@@ -60,10 +60,15 @@ function isMobile() {
 }
 
 function shouldEnable() {
-    const s = getSettings().wiSheet || {};
+    const s = getSettings();
     if (!s.enabled) return false;
-    return isMobile() || s.pcMode;
+    const ws = s.wiSheet || {};
+    if (!ws.enabled) return false;
+    return isMobile() || ws.pcMode;
 }
+
+// 导出供主入口在总开关切换时调用
+export function reapplyWiSheetState() { applyState(); }
 
 function applyState() {
     const sel = document.querySelector(WI_SELECTOR);
@@ -406,7 +411,7 @@ function updateSheetCount(scope, sel) {
 
 function closeSheet() {
     const overlay = document.getElementById(SHEET_ID);
-    const sheet = document.querySelector('.ggg-wi-sheet');
+    const sheet = document.querySelector('.ggg-wi-sheet:not(.ggg-ss-sheet)');
     if (!overlay && !sheet) return;
     sheetViewportCleanup?.();
     overlay?.classList.remove('open');
